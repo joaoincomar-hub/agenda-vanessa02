@@ -1,0 +1,17 @@
+REFINAMENTO VISUAL APLICADO
+
+O que foi alterado:
+- Paleta premium com lilas, rosa claro e detalhe dourado.
+- Login com frase da marca e selo visual.
+- Cards mais arredondados e com sombra suave.
+- Calendario, agenda e botoes com visual mais limpo.
+- Botao principal e botao de agendamento padronizados.
+- Visual mais feminino, profissional e menos tela de teste.
+
+O que voce precisa fazer:
+1. Substituir os arquivos atuais no GitHub por estes.
+2. Fazer commit/upload.
+3. Aguardar o Render atualizar.
+4. Abrir o link e testar login, cadastro e agendamento.
+
+Se o Render nao atualizar sozinho, clique em Manual Deploy > Deploy latest commit.

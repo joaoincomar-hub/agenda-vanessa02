@@ -1,0 +1,27 @@
+AGENDA VANESSA RORIG - ARQUIVOS ORGANIZADOS
+
+O que foi arrumado:
+1. Criei a pasta assets e coloquei as imagens dentro dela.
+2. Mantive o App.tsx apontando para ./assets/logo-vanessa.jpeg.
+3. Mantive o app.json apontando para ./assets/icon.png, ./assets/splash-icon.png e ./assets/favicon.png.
+4. Removi a chave fixa do Supabase de dentro do App.tsx.
+5. Atualizei o .gitignore para nao enviar .env para o GitHub.
+6. Atualizei o render.yaml com rewrite para evitar erro ao atualizar pagina no site.
+
+ANTES DE RODAR:
+1. Copie .env.example e renomeie a copia para .env.local
+2. Coloque os dados reais do Supabase:
+   EXPO_PUBLIC_SUPABASE_URL=...
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=...
+
+COMANDOS:
+npm install
+npm run web
+
+PARA PUBLICAR NO RENDER:
+No painel do Render, cadastre as mesmas variaveis:
+EXPO_PUBLIC_SUPABASE_URL
+EXPO_PUBLIC_SUPABASE_ANON_KEY
+
+IMPORTANTE:
+Rode o SUPABASE_SETUP.sql no SQL Editor do Supabase antes de testar com cliente real.
