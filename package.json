@@ -1,4 +1,5 @@
- "license": "0BSD",
+{
+  "license": "0BSD",
   "main": "index.ts",
   "engines": {
     "node": "22.x"
