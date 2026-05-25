@@ -97,8 +97,8 @@ const SUPABASE_ANON_KEY =
 
 const VANESSA_WHATSAPP = env.EXPO_PUBLIC_VANESSA_WHATSAPP || '+55 45 8823-3247';
 const WHATSAPP_LOGIN_MESSAGE =
-  env.EXPO_PUBLIC_WHATSAPP_LOGIN_MESSAGE ||
   'Oi, Vanessa 💜\nVim pelo app e gostaria de conhecer melhor os procedimentos e cuidados que você oferece ✨';
+const CATALOGO_SERVICOS_WEB_PATH = '/catalogo-servicos.pdf';
 
 const supabase = createClient(
   SUPABASE_URL,
@@ -1996,8 +1996,9 @@ export default function App() {
   };
 
   const abrirCatalogoServicos = async () => {
-    const fonte = Image.resolveAssetSource(catalogoServicos);
-    const url = fonte?.uri;
+    const origemWeb = (globalThis as any)?.location?.origin || '';
+    const fonte = Platform.OS === 'web' ? null : Image.resolveAssetSource(catalogoServicos);
+    const url = Platform.OS === 'web' ? `${origemWeb}${CATALOGO_SERVICOS_WEB_PATH}` : fonte?.uri;
 
     if (!url) {
       Alert.alert('Servicos oferecidos', 'Nao consegui localizar o catalogo de servicos.');
