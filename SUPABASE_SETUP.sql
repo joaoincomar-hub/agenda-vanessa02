@@ -18,6 +18,8 @@ create table if not exists public.clientes (
   aniversario text,
   email text,
   fotourl text,
+  prontuario text,
+  prontuarioarquivourl text,
   created_at timestamptz default now()
 );
 
@@ -78,6 +80,8 @@ alter table public.clientes add column if not exists cpf text;
 alter table public.clientes add column if not exists aniversario text;
 alter table public.clientes add column if not exists email text;
 alter table public.clientes add column if not exists fotourl text;
+alter table public.clientes add column if not exists prontuario text;
+alter table public.clientes add column if not exists prontuarioarquivourl text;
 
 alter table public.servicos add column if not exists nome text;
 alter table public.servicos add column if not exists preco text;
@@ -296,6 +300,39 @@ as $$
     where lower(email) = lower(auth.email())
   );
 $$;
+
+create or replace function public.proteger_prontuario_cliente()
+returns trigger
+language plpgsql
+as $$
+begin
+  if public.is_app_admin() then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if coalesce(new.prontuario, '') <> ''
+      or coalesce(new.prontuarioarquivourl, '') <> '' then
+      raise exception 'Somente Vanessa pode editar o prontuario do cliente.';
+    end if;
+
+    return new;
+  end if;
+
+  if coalesce(new.prontuario, '') is distinct from coalesce(old.prontuario, '')
+    or coalesce(new.prontuarioarquivourl, '') is distinct from coalesce(old.prontuarioarquivourl, '') then
+    raise exception 'Somente Vanessa pode editar o prontuario do cliente.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists clientes_proteger_prontuario on public.clientes;
+create trigger clientes_proteger_prontuario
+before insert or update on public.clientes
+for each row
+execute function public.proteger_prontuario_cliente();
 
 alter table public.clientes enable row level security;
 alter table public.servicos enable row level security;

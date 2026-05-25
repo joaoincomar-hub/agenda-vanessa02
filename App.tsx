@@ -150,6 +150,8 @@ type Cliente = {
   cpf: string;
   aniversario: string;
   fotoUrl?: string;
+  prontuario?: string;
+  prontuarioArquivoUrl?: string;
   email?: string;
   semCadastro?: boolean;
 };
@@ -337,8 +339,8 @@ function formatarDinheiro(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-function clienteParaBanco(cliente: Cliente) {
-  return {
+function clienteParaBanco(cliente: Cliente, incluirProntuario = false) {
+  const dados: any = {
     id: cliente.id,
     nome: cliente.nome,
     celular: cliente.celular,
@@ -347,6 +349,11 @@ function clienteParaBanco(cliente: Cliente) {
     email: cliente.email || '',
     fotourl: cliente.fotoUrl || '',
   };
+
+  if (incluirProntuario || cliente.prontuario) dados.prontuario = cliente.prontuario || '';
+  if (incluirProntuario || cliente.prontuarioArquivoUrl) dados.prontuarioarquivourl = cliente.prontuarioArquivoUrl || '';
+
+  return dados;
 }
 
 function clienteDoBanco(item: any): Cliente {
@@ -358,6 +365,8 @@ function clienteDoBanco(item: any): Cliente {
     aniversario: item.aniversario,
     email: item.email || '',
     fotoUrl: item.fotourl || '',
+    prontuario: item.prontuario || '',
+    prontuarioArquivoUrl: item.prontuarioarquivourl || '',
   };
 }
 
@@ -479,6 +488,8 @@ export default function App() {
   const [novoNiverCliente, setNovoNiverCliente] = useState('');
   const [novoEmailCliente, setNovoEmailCliente] = useState('');
   const [novaFotoCliente, setNovaFotoCliente] = useState('');
+  const [novoProntuarioCliente, setNovoProntuarioCliente] = useState('');
+  const [novoProntuarioArquivoCliente, setNovoProntuarioArquivoCliente] = useState('');
   const [clienteEditandoId, setClienteEditandoId] = useState<string | null>(null);
 
   const [novoServicoNome, setNovoServicoNome] = useState('');
@@ -1311,6 +1322,8 @@ export default function App() {
     setNovoNiverCliente('');
     setNovoEmailCliente('');
     setNovaFotoCliente('');
+    setNovoProntuarioCliente('');
+    setNovoProntuarioArquivoCliente('');
     setClienteEditandoId(null);
   };
 
@@ -1327,6 +1340,8 @@ export default function App() {
     setNovoNiverCliente(item.aniversario === 'Não cadastrado' ? '' : item.aniversario);
     setNovoEmailCliente(item.email || '');
     setNovaFotoCliente(item.fotoUrl || '');
+    setNovoProntuarioCliente(item.prontuario || '');
+    setNovoProntuarioArquivoCliente(item.prontuarioArquivoUrl || '');
     setTelaAtiva('NovoCadastro');
   };
 
@@ -1346,6 +1361,8 @@ export default function App() {
       aniversario: novoNiverCliente || 'Não cadastrado',
       email: novoEmailCliente.trim().toLowerCase() || '',
       fotoUrl: novaFotoCliente || '',
+      prontuario: perfil === 'admin' ? novoProntuarioCliente.trim() : '',
+      prontuarioArquivoUrl: perfil === 'admin' ? novoProntuarioArquivoCliente.trim() : '',
     };
 
     setAcaoEmAndamento(true);
@@ -1353,7 +1370,7 @@ export default function App() {
     try {
       const { error } = await supabase
         .from('clientes')
-        .upsert(clienteParaBanco(cliente));
+        .upsert(clienteParaBanco(cliente, perfil === 'admin'));
 
       if (error) {
         Alert.alert('Erro ao salvar cliente', error.message);
@@ -2018,6 +2035,21 @@ export default function App() {
     }
   };
 
+  const abrirArquivoProntuario = async (url?: string) => {
+    const destino = (url || '').trim();
+
+    if (!destino) {
+      Alert.alert('Prontuario', 'Nenhum arquivo de prontuario foi cadastrado.');
+      return;
+    }
+
+    try {
+      await Linking.openURL(destino);
+    } catch {
+      Alert.alert('Prontuario', 'Nao consegui abrir esse arquivo neste aparelho.');
+    }
+  };
+
   const atualizarSenhaMeuCadastro = async () => {
     const novaSenha = novaSenhaMeuCadastro.trim();
 
@@ -2273,6 +2305,26 @@ export default function App() {
       setNovaFotoCliente(uri);
     } catch {
       Alert.alert('Foto', 'Instale expo-image-picker ou informe uma URL da foto.');
+    }
+  };
+
+  const escolherFotoProntuario = async () => {
+    try {
+      const ImagePicker = require('expo-image-picker');
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      const uri = asset.base64 ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}` : asset.uri;
+      setNovoProntuarioArquivoCliente(uri);
+    } catch {
+      Alert.alert('Prontuario', 'Escolha uma foto ou cole o link de uma foto/PDF.');
     }
   };
 
@@ -3176,6 +3228,46 @@ export default function App() {
           autoCorrect={false}
         />
 
+        {perfil === 'admin' && (
+          <View style={styles.prontuarioEditor}>
+            <Text style={styles.sectionTitle}>Prontuario da cliente</Text>
+
+            <TextInput
+              style={[styles.inputForm, styles.inputTextArea]}
+              placeholder="Ficha, observacoes, historico e cuidados da cliente"
+              value={novoProntuarioCliente}
+              onChangeText={setNovoProntuarioCliente}
+              autoCorrect={false}
+              multiline
+              textAlignVertical="top"
+            />
+
+            <TextInput
+              style={styles.inputForm}
+              placeholder="Link de foto ou PDF do prontuario"
+              value={novoProntuarioArquivoCliente}
+              onChangeText={setNovoProntuarioArquivoCliente}
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+
+            <TouchableOpacity style={styles.btnAnexoProntuario} onPress={escolherFotoProntuario}>
+              <MaterialCommunityIcons name="image-plus" size={18} color={colors.primaryDark} />
+              <Text style={styles.btnAnexoProntuarioTexto}>Adicionar foto</Text>
+            </TouchableOpacity>
+
+            {!!novoProntuarioArquivoCliente.trim() && (
+              <TouchableOpacity
+                style={styles.btnAnexoProntuario}
+                onPress={() => abrirArquivoProntuario(novoProntuarioArquivoCliente)}
+              >
+                <MaterialCommunityIcons name="file-eye-outline" size={18} color={colors.primaryDark} />
+                <Text style={styles.btnAnexoProntuarioTexto}>Abrir anexo</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         <TouchableOpacity
           style={[styles.btnSalvarInterno, acaoEmAndamento && styles.btnDesabilitado]}
           onPress={salvarCliente}
@@ -3243,6 +3335,9 @@ export default function App() {
                 <Text style={styles.rowTitle}>{item.nome}</Text>
                 <Text style={styles.rowSub}>
                   {item.celular} • {item.aniversario}
+                </Text>
+                <Text style={styles.rowSub}>
+                  Prontuario: {item.prontuario || item.prontuarioArquivoUrl ? 'cadastrado' : 'pendente'}
                 </Text>
               </TouchableOpacity>
 
@@ -3642,6 +3737,11 @@ export default function App() {
               <Text style={styles.menuText}>Clientes</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.menuCard} onPress={() => setTelaAtiva('Clientes')}>
+              <MaterialCommunityIcons name="clipboard-text-outline" size={28} color={colors.primary} />
+              <Text style={styles.menuText}>Prontuários</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.menuCard} onPress={() => setTelaAtiva('Bloqueios')}>
               <MaterialCommunityIcons name="calendar-lock" size={28} color={colors.primary} />
               <Text style={styles.menuText}>Bloqueios</Text>
@@ -3949,6 +4049,9 @@ export default function App() {
       );
     }
 
+    const prontuarioArquivo = (clienteSelecionado.prontuarioArquivoUrl || '').trim();
+    const prontuarioParecePdf = prontuarioArquivo.toLowerCase().includes('.pdf');
+
     return (
       <ScrollView style={styles.containerTela} contentContainerStyle={{ paddingBottom: 120 }}>
         <View style={styles.comandaBox}>
@@ -3962,6 +4065,36 @@ export default function App() {
           <Text style={styles.configLine}>Foto: {clienteSelecionado.fotoUrl || '-'}</Text>
           <Text style={styles.configLine}>CPF: {clienteSelecionado.cpf}</Text>
           <Text style={styles.configLine}>Aniversário: {clienteSelecionado.aniversario}</Text>
+        </View>
+
+        <View style={styles.comandaBox}>
+          <Text style={styles.configTitle}>Prontuario</Text>
+
+          {clienteSelecionado.prontuario ? (
+            <Text style={styles.prontuarioTexto}>{clienteSelecionado.prontuario}</Text>
+          ) : (
+            <Text style={styles.configLine}>Nenhuma ficha cadastrada pela Vanessa.</Text>
+          )}
+
+          {!!prontuarioArquivo && !prontuarioParecePdf && (
+            <Image source={{ uri: prontuarioArquivo }} style={styles.prontuarioImagem} />
+          )}
+
+          {!!prontuarioArquivo && (
+            <TouchableOpacity
+              style={styles.btnAnexoProntuario}
+              onPress={() => abrirArquivoProntuario(prontuarioArquivo)}
+            >
+              <MaterialCommunityIcons
+                name={prontuarioParecePdf ? 'file-pdf-box' : 'image-outline'}
+                size={18}
+                color={colors.primaryDark}
+              />
+              <Text style={styles.btnAnexoProntuarioTexto}>
+                {prontuarioParecePdf ? 'Abrir PDF do prontuario' : 'Abrir imagem do prontuario'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.comandaBox}>
@@ -4494,6 +4627,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     backgroundColor: colors.surface,
   },
+  inputTextArea: {
+    minHeight: 140,
+    lineHeight: 20,
+  },
   senhaWrap: {
     position: 'relative',
     marginBottom: 15,
@@ -4550,6 +4687,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnClienteTexto: { color: '#FFF', fontWeight: '900', fontSize: 15 },
+  prontuarioEditor: {
+    marginBottom: 14,
+    paddingTop: 4,
+  },
+  btnAnexoProntuario: {
+    minHeight: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.softLavender,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  btnAnexoProntuarioTexto: {
+    color: colors.primaryDark,
+    fontWeight: '900',
+    fontSize: 13,
+  },
   btnCadastroPublico: {
     marginTop: 4,
     backgroundColor: colors.softLavender,
@@ -4800,6 +4959,18 @@ const styles = StyleSheet.create({
   },
   configTitle: { fontWeight: '900', color: colors.text, fontSize: 15, marginBottom: 8 },
   configLine: { color: colors.muted, marginBottom: 5, lineHeight: 20 },
+  prontuarioTexto: {
+    color: colors.text,
+    lineHeight: 21,
+    marginBottom: 12,
+  },
+  prontuarioImagem: {
+    width: '100%',
+    height: 220,
+    borderRadius: 10,
+    backgroundColor: colors.softLavender,
+    marginBottom: 12,
+  },
   sectionTitle: {
     color: colors.muted,
     fontSize: 12,
