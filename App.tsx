@@ -97,7 +97,8 @@ const SUPABASE_ANON_KEY =
 
 const VANESSA_WHATSAPP = env.EXPO_PUBLIC_VANESSA_WHATSAPP || '+55 45 8823-3247';
 const WHATSAPP_LOGIN_MESSAGE =
-  env.EXPO_PUBLIC_WHATSAPP_LOGIN_MESSAGE || 'Ola, Vanessa! Vim pelo app e gostaria de falar sobre os atendimentos.';
+  env.EXPO_PUBLIC_WHATSAPP_LOGIN_MESSAGE ||
+  'Oi, Vanessa 💜\nVim pelo app e gostaria de conhecer melhor os procedimentos e cuidados que você oferece ✨';
 
 const supabase = createClient(
   SUPABASE_URL,
