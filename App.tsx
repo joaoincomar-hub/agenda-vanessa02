@@ -50,6 +50,8 @@ const nomesMeses = [
 ];
 
 const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const AGENDA_INICIO = '07:00';
+const AGENDA_FIM = '20:00';
 
 function gerarHorariosAgenda(inicio: string, fim: string, intervaloMinutos = 30) {
   const lista: string[] = [];
@@ -65,7 +67,7 @@ function gerarHorariosAgenda(inicio: string, fim: string, intervaloMinutos = 30)
   return lista;
 }
 
-const horarios = gerarHorariosAgenda('07:00', '20:00');
+const horarios = gerarHorariosAgenda(AGENDA_INICIO, AGENDA_FIM);
 
 const ADMIN_EMAILS = [
   'vanessarorigterapias@gmail.com',
@@ -258,6 +260,10 @@ function duracaoAgendamento(agendamento?: Agendamento | null) {
 function minutosDoHorario(horario: string) {
   const [h, m] = horario.split(':').map(Number);
   return h * 60 + m;
+}
+
+function horarioCabeNaAgenda(horario: string, duracaoMinutos = 30) {
+  return minutosDoHorario(horario) + duracaoMinutos <= minutosDoHorario(AGENDA_FIM);
 }
 
 function intervaloSobrepoe(inicioA: number, fimA: number, inicioB: number, fimB: number) {
@@ -1671,6 +1677,14 @@ export default function App() {
 
     const duracaoSelecionada = duracaoServico(servicoSelecionado);
 
+    if (!horarioCabeNaAgenda(horarioSelecionado, duracaoSelecionada)) {
+      Alert.alert(
+        'Horario fora da agenda',
+        `Esse servico precisa de ${duracaoSelecionada} minutos e passaria do fim da agenda (${AGENDA_FIM}).`
+      );
+      return;
+    }
+
     if (horarioBloqueado(dataISOSelecionada, horarioSelecionado, duracaoSelecionada)) {
       Alert.alert('Horário bloqueado', 'Esse horário foi bloqueado pela Vanessa.');
       return;
@@ -2871,10 +2885,12 @@ export default function App() {
 
           <View style={styles.horariosPicker}>
             {horarios.map((hora) => {
+              const duracaoSelecionada = duracaoServico(servicoSelecionado);
               const ativo = horarioSelecionado === hora;
-              const ocupado = horarioOcupado(dataISOSelecionada, hora, duracaoServico(servicoSelecionado), agendamentoEditandoId);
-              const bloqueado = horarioBloqueado(dataISOSelecionada, hora, duracaoServico(servicoSelecionado));
-              const indisponivel = ocupado || bloqueado;
+              const ocupado = horarioOcupado(dataISOSelecionada, hora, duracaoSelecionada, agendamentoEditandoId);
+              const bloqueado = horarioBloqueado(dataISOSelecionada, hora, duracaoSelecionada);
+              const foraDoExpediente = !horarioCabeNaAgenda(hora, duracaoSelecionada);
+              const indisponivel = ocupado || bloqueado || foraDoExpediente;
 
               return (
                 <TouchableOpacity

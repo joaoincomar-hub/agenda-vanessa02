@@ -140,6 +140,104 @@ on public.clientes (lower(nome), lower(email));
 create index if not exists agendamentos_data_idx
 on public.agendamentos (dataiso, horario, status);
 
+create or replace function public.horario_para_minutos(horario_text text)
+returns integer
+language sql
+immutable
+as $$
+  select split_part(horario_text, ':', 1)::integer * 60
+       + split_part(horario_text, ':', 2)::integer;
+$$;
+
+create or replace function public.validar_agendamento_horario()
+returns trigger
+language plpgsql
+as $$
+declare
+  inicio_novo integer;
+  fim_novo integer;
+  duracao_nova integer;
+begin
+  if new.status = 'Cancelado' then
+    return new;
+  end if;
+
+  inicio_novo := public.horario_para_minutos(new.horario);
+  duracao_nova := coalesce(new.duracaominutos, 30);
+  fim_novo := inicio_novo + duracao_nova;
+
+  if inicio_novo < public.horario_para_minutos('07:00')
+     or fim_novo > public.horario_para_minutos('20:00') then
+    raise exception 'Horario fora do expediente da agenda';
+  end if;
+
+  if exists (
+    select 1
+    from public.agendamentos a
+    where a.dataiso = new.dataiso
+      and a.status <> 'Cancelado'
+      and a.id <> new.id
+      and inicio_novo < public.horario_para_minutos(a.horario) + coalesce(a.duracaominutos, 30)
+      and public.horario_para_minutos(a.horario) < fim_novo
+  ) then
+    raise exception 'Horario sobrepoe outro agendamento';
+  end if;
+
+  if exists (
+    select 1
+    from public.bloqueios b
+    where b.dataiso = new.dataiso
+      and inicio_novo < public.horario_para_minutos(b.horario) + 30
+      and public.horario_para_minutos(b.horario) < fim_novo
+  ) then
+    raise exception 'Horario bloqueado';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists validar_agendamento_horario_trigger on public.agendamentos;
+create trigger validar_agendamento_horario_trigger
+before insert or update on public.agendamentos
+for each row execute function public.validar_agendamento_horario();
+
+create or replace function public.validar_bloqueio_horario()
+returns trigger
+language plpgsql
+as $$
+declare
+  inicio_bloqueio integer;
+  fim_bloqueio integer;
+begin
+  inicio_bloqueio := public.horario_para_minutos(new.horario);
+  fim_bloqueio := inicio_bloqueio + 30;
+
+  if inicio_bloqueio < public.horario_para_minutos('07:00')
+     or fim_bloqueio > public.horario_para_minutos('20:00') then
+    raise exception 'Bloqueio fora do expediente da agenda';
+  end if;
+
+  if exists (
+    select 1
+    from public.agendamentos a
+    where a.dataiso = new.dataiso
+      and a.status <> 'Cancelado'
+      and inicio_bloqueio < public.horario_para_minutos(a.horario) + coalesce(a.duracaominutos, 30)
+      and public.horario_para_minutos(a.horario) < fim_bloqueio
+  ) then
+    raise exception 'Bloqueio sobrepoe agendamento';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists validar_bloqueio_horario_trigger on public.bloqueios;
+create trigger validar_bloqueio_horario_trigger
+before insert or update on public.bloqueios
+for each row execute function public.validar_bloqueio_horario();
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
