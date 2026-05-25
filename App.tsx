@@ -98,6 +98,9 @@ const SUPABASE_ANON_KEY =
 const VANESSA_WHATSAPP = env.EXPO_PUBLIC_VANESSA_WHATSAPP || '+55 45 8823-3247';
 const WHATSAPP_LOGIN_MESSAGE =
   'Oi, Vanessa 💜\nVim pelo app e gostaria de conhecer melhor os procedimentos e cuidados que você oferece ✨';
+const WHATSAPP_LOGIN_MESSAGE_ENCODED =
+  'Oi%2C%20Vanessa%20%F0%9F%92%9C%0A' +
+  'Vim%20pelo%20app%20e%20gostaria%20de%20conhecer%20melhor%20os%20procedimentos%20e%20cuidados%20que%20voc%C3%AA%20oferece%20%E2%9C%A8';
 const CATALOGO_SERVICOS_WEB_PATH = '/catalogo-servicos.pdf';
 
 const supabase = createClient(
@@ -1985,8 +1988,11 @@ export default function App() {
       return;
     }
 
-    const texto = encodeURIComponent(WHATSAPP_LOGIN_MESSAGE);
-    const url = `https://wa.me/${telefone}?text=${texto}`;
+    const texto = WHATSAPP_LOGIN_MESSAGE_ENCODED;
+    const url =
+      Platform.OS === 'web'
+        ? `https://api.whatsapp.com/send?phone=${telefone}&text=${texto}`
+        : `https://wa.me/${telefone}?text=${texto}`;
 
     try {
       await Linking.openURL(url);
