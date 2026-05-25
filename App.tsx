@@ -93,6 +93,8 @@ const SUPABASE_ANON_KEY =
   env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5aWdidGtldHNxZmpobmJwdmZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzU5MTksImV4cCI6MjA5NDgxMTkxOX0.2RIb8VMFpq0gZT7jxno8_0YmtHefvKWCQyVkyY6vGVQ';
 
+const VANESSA_WHATSAPP = env.EXPO_PUBLIC_VANESSA_WHATSAPP || '';
+
 const supabase = createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
@@ -1970,6 +1972,24 @@ export default function App() {
     }
   };
 
+  const abrirWhatsAppLogin = async () => {
+    const telefone = telefoneWhatsApp(VANESSA_WHATSAPP);
+
+    if (!telefone) {
+      Alert.alert('WhatsApp', 'Configure o numero da Vanessa em EXPO_PUBLIC_VANESSA_WHATSAPP.');
+      return;
+    }
+
+    const texto = encodeURIComponent('Ola, Vanessa! Quero falar sobre a agenda.');
+    const url = `https://wa.me/${telefone}?text=${texto}`;
+
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('WhatsApp', 'Nao consegui abrir o WhatsApp neste aparelho.');
+    }
+  };
+
   const atualizarSenhaMeuCadastro = async () => {
     const novaSenha = novaSenhaMeuCadastro.trim();
 
@@ -2600,6 +2620,11 @@ export default function App() {
 
           <TouchableOpacity style={styles.btnAgendarRapido} onPress={entrarVisitante}>
             <Text style={styles.btnAgendarRapidoTexto}>Agendar sem criar conta</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.btnWhatsAppLogin} onPress={abrirWhatsAppLogin}>
+            <FontAwesome5 name="whatsapp" size={18} color="#FFF" />
+            <Text style={styles.btnWhatsAppLoginTexto}>Falar no WhatsApp</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
@@ -4510,6 +4535,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnAgendarRapidoTexto: { color: '#FFF', fontWeight: '900', fontSize: 14 },
+  btnWhatsAppLogin: {
+    marginTop: 10,
+    backgroundColor: '#25D366',
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  btnWhatsAppLoginTexto: { color: '#FFF', fontWeight: '900', fontSize: 14 },
   btnVoltarLogin: { marginTop: 10, padding: 12, alignItems: 'center' },
   btnVoltarLoginTexto: { color: colors.muted, fontWeight: '900' },
   formInlineBox: {
