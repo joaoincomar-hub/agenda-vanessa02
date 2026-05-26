@@ -220,7 +220,13 @@ function formatarData(data: Date) {
 }
 
 function dataBR(iso: string) {
-  return iso.split('-').reverse().join('/');
+  return normalizarDataISO(iso).split('-').reverse().join('/');
+}
+
+function normalizarDataISO(valor?: string) {
+  const texto = (valor || '').trim();
+  const encontrado = texto.match(/\d{4}-\d{2}-\d{2}/);
+  return encontrado ? encontrado[0] : texto;
 }
 
 function aniversarioCliente(cliente: Cliente) {
@@ -318,6 +324,10 @@ function bloqueioNoHorario(bloqueiosDia: Bloqueio[], horario: string) {
       minutosDoHorario(fimBloqueio(bloqueio))
     )
   );
+}
+
+function bloqueioNoDia(bloqueio: Bloqueio, dataISO: string) {
+  return normalizarDataISO(bloqueio.dataISO) === normalizarDataISO(dataISO);
 }
 
 function horarioFimNoMotivo(motivo?: string) {
@@ -492,7 +502,7 @@ function bloqueioDoBanco(item: any): Bloqueio {
 
   return {
     id: item.id,
-    dataISO: item.dataiso,
+    dataISO: normalizarDataISO(item.dataiso),
     horario: item.horario,
     horarioFim: item.horariofim || horarioFimNoMotivo(motivo),
     motivo: motivoVisivelBloqueio(motivo),
@@ -575,7 +585,7 @@ export default function App() {
     (a) => a.dataISO === dataISOSelecionada && a.status !== 'Cancelado'
   );
 
-  const bloqueiosDoDia = bloqueios.filter((b) => b.dataISO === dataISOSelecionada);
+  const bloqueiosDoDia = bloqueios.filter((b) => bloqueioNoDia(b, dataISOSelecionada));
   const clientesOrdenados = useMemo(() => ordenarClientesPorNome(clientes), [clientes]);
 
   const aniversariosOrdenados = useMemo(
@@ -636,7 +646,14 @@ export default function App() {
         if (c) setClientes(JSON.parse(c));
         if (s) setServicos(JSON.parse(s));
         if (a) setAgendamentos(JSON.parse(a));
-        if (b) setBloqueios(JSON.parse(b));
+        if (b) {
+          setBloqueios(
+            JSON.parse(b).map((item: Bloqueio) => ({
+              ...item,
+              dataISO: normalizarDataISO(item.dataISO),
+            }))
+          );
+        }
 
         if (sessao) {
           const p = JSON.parse(sessao);
@@ -1629,7 +1646,7 @@ export default function App() {
     const fim = inicio + duracaoMinutos;
 
     return bloqueios.some((b) => {
-      if (b.dataISO !== dataISO) return false;
+      if (!bloqueioNoDia(b, dataISO)) return false;
       const inicioBloqueio = minutosDoHorario(b.horario);
       const fimExistente = minutosDoHorario(fimBloqueio(b));
       return intervaloSobrepoe(inicio, fim, inicioBloqueio, fimExistente);
@@ -2221,7 +2238,7 @@ export default function App() {
     }
 
     const temAgendamento = agendamentos.some((item) => {
-      if (item.dataISO !== dataISOSelecionada || item.status === 'Cancelado') return false;
+      if (normalizarDataISO(item.dataISO) !== normalizarDataISO(dataISOSelecionada) || item.status === 'Cancelado') return false;
       const inicioAgendamento = minutosDoHorario(item.horario);
       const fimAgendamento = inicioAgendamento + duracaoAgendamento(item);
       return intervaloSobrepoe(inicio, fim, inicioAgendamento, fimAgendamento);
@@ -2233,7 +2250,7 @@ export default function App() {
     }
 
     const jaBloqueado = bloqueios.some((item) => {
-      if (item.dataISO !== dataISOSelecionada) return false;
+      if (!bloqueioNoDia(item, dataISOSelecionada)) return false;
       return intervaloSobrepoe(inicio, fim, minutosDoHorario(item.horario), minutosDoHorario(fimBloqueio(item)));
     });
 
@@ -2244,7 +2261,7 @@ export default function App() {
 
     const novo: Bloqueio = {
       id: Date.now().toString(),
-      dataISO: dataISOSelecionada,
+      dataISO: normalizarDataISO(dataISOSelecionada),
       horario: bloqueioInicio,
       horarioFim: bloqueioFim,
       motivo: motivoBloqueio || 'Bloqueado',
@@ -2864,7 +2881,7 @@ export default function App() {
             const temAgenda = agendamentos.some(
               (a) => a.dataISO === iso && a.status !== 'Cancelado'
             );
-            const temBloqueio = bloqueios.some((b) => b.dataISO === iso);
+            const temBloqueio = bloqueios.some((b) => bloqueioNoDia(b, iso));
 
             return (
               <TouchableOpacity
