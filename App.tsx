@@ -28,22 +28,24 @@ const logoVanessa = { uri: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
 const catalogoServicos = require('./assets/catalogo-servicos.pdf');
 
 const colors = {
-  primary: '#7E6BD8',
-  primaryDark: '#5D4BB7',
-  secondary: '#F4CFE0',
-  softPink: '#FFF1F7',
-  softLavender: '#F6F3FF',
-  background: '#FBFAFE',
+  primary: '#8068C9',
+  primaryDark: '#4E3D76',
+  secondary: '#EBC7D7',
+  softPink: '#FFF4F8',
+  softLavender: '#F8F5FF',
+  background: '#FFFCFE',
   surface: '#FFFFFF',
-  text: '#30293B',
-  muted: '#918AA0',
-  border: '#E8E1F3',
-  success: '#32B768',
-  danger: '#D9534F',
-  warning: '#D79B00',
-  blueButton: '#0D84FF',
-  scheduleBlue: '#D7ECFF',
-  scheduleBlueText: '#315C82',
+  surfaceWarm: '#FFFAFC',
+  text: '#2C2634',
+  muted: '#8E8799',
+  border: '#EEE5F1',
+  success: '#5E9F7A',
+  danger: '#C96565',
+  warning: '#B98A2F',
+  gold: '#C8A65A',
+  blueButton: '#8068C9',
+  scheduleBlue: '#F3EFFB',
+  scheduleBlueText: '#4E3D76',
 };
 
 const nomesMeses = [
@@ -86,14 +88,10 @@ const STORAGE_KEYS = {
 
 const env = typeof process !== 'undefined' ? process.env || {} : {};
 
-// Em producao, prefira configurar estas variaveis no Render/Expo:
-// EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY.
-const SUPABASE_URL =
-  env.EXPO_PUBLIC_SUPABASE_URL || 'https://gyigbtketsqfjhnbpvfn.supabase.co';
-
-const SUPABASE_ANON_KEY =
-  env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5aWdidGtldHNxZmpobmJwdmZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzU5MTksImV4cCI6MjA5NDgxMTkxOX0.2RIb8VMFpq0gZT7jxno8_0YmtHefvKWCQyVkyY6vGVQ';
+const SUPABASE_URL = env.EXPO_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+const SUPABASE_URL_CLIENTE = SUPABASE_URL || 'https://example.supabase.co';
+const SUPABASE_ANON_KEY_CLIENTE = SUPABASE_ANON_KEY || 'anon-key-nao-configurada';
 
 const VANESSA_WHATSAPP = env.EXPO_PUBLIC_VANESSA_WHATSAPP || '+55 45 8823-3247';
 const WHATSAPP_LOGIN_MESSAGE =
@@ -104,8 +102,8 @@ const WHATSAPP_LOGIN_MESSAGE_ENCODED =
 const CATALOGO_SERVICOS_WEB_PATH = '/catalogo-servicos.pdf';
 
 const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
+  SUPABASE_URL_CLIENTE,
+  SUPABASE_ANON_KEY_CLIENTE,
   {
     auth: {
       storage: AsyncStorage as any,
@@ -116,7 +114,7 @@ const supabase = createClient(
   }
 );
 
-const bancoOnlineAtivo = true;
+const bancoOnlineAtivo = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
 function urlRecuperacaoSenha() {
   const globalScope: any = globalThis as any;
@@ -542,7 +540,7 @@ export default function App() {
   const [modoCadastroPublico, setModoCadastroPublico] = useState(false);
   const [modoListaProntuarios, setModoListaProntuarios] = useState(false);
 
-  const [telaAtiva, setTelaAtiva] = useState('Agenda');
+  const [telaAtiva, setTelaAtiva] = useState('Painel');
   const [modalOpcoesVisivel, setModalOpcoesVisivel] = useState(false);
   const [dataSelecionada, setDataSelecionada] = useState(new Date());
   const [mesAnoVisivel, setMesAnoVisivel] = useState(
@@ -615,7 +613,20 @@ export default function App() {
   const agendamentoDoClienteAtual = (agendamento: Agendamento) =>
     !!clienteSelecionado && agendamento.cliente.id === clienteSelecionado.id;
 
+  const exigirSupabaseConfigurado = () => {
+    if (bancoOnlineAtivo) return true;
+    Alert.alert(
+      'Supabase nao configurado',
+      'Configure EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY antes de salvar dados online.'
+    );
+    return false;
+  };
+
   const carregarDadosOnline = async () => {
+    if (!bancoOnlineAtivo) {
+      throw new Error('Supabase nao configurado');
+    }
+
     const { data: clientesOnline, error: erroClientes } =
       await supabase.from('clientes').select('*');
 
@@ -808,6 +819,7 @@ export default function App() {
   const tituloTela = () => {
     const titulos: Record<string, string> = {
       Agenda: 'Agenda',
+      Painel: 'Painel',
       NovoAgendamento: 'Novo agendamento',
       NovoCadastro: clienteEditandoId ? 'Editar cliente' : 'Cadastro do cliente',
       Servicos: 'Serviços',
@@ -901,7 +913,7 @@ export default function App() {
 
       Alert.alert(
         'Cadastro nao encontrado',
-        'O login entrou, mas nao encontrei seu cadastro de cliente. Toque em "Sou novo aqui" para cadastrar.'
+        'O login entrou, mas nao encontrei seu cadastro de cliente. Fale com a Vanessa para ajustar seu cadastro.'
       );
     } finally {
       setAcaoEmAndamento(false);
@@ -944,7 +956,7 @@ export default function App() {
       if (!clienteExistente) {
         Alert.alert(
           'Cadastro nao encontrado',
-          'Nao encontrei seu cadastro de cliente. Toque em "Sou novo aqui" para cadastrar.'
+          'Nao encontrei seu cadastro de cliente. Fale com a Vanessa para ajustar seu cadastro.'
         );
         return;
       }
@@ -1034,6 +1046,7 @@ export default function App() {
 
   const entrarAdmin = async () => {
     if (acaoEmAndamento) return;
+    if (!exigirSupabaseConfigurado()) return;
 
     const email = emailAdmin.trim().toLowerCase();
 
@@ -1065,6 +1078,7 @@ export default function App() {
       }
 
       setPerfil('admin');
+      setTelaAtiva('Painel');
       setEmailAdmin('');
       setSenhaAdmin('');
       await carregarDadosOnline();
@@ -1400,7 +1414,7 @@ export default function App() {
 
   const sair = async () => {
     setPerfil(null);
-    setTelaAtiva('Agenda');
+    setTelaAtiva('Painel');
     setClienteSelecionado(null);
     setServicoSelecionado(null);
     setAgendamentoSelecionado(null);
@@ -1441,6 +1455,7 @@ export default function App() {
 
   const salvarCliente = async () => {
     if (acaoEmAndamento) return;
+    if (!exigirSupabaseConfigurado()) return;
 
     if (!novoNomeCliente.trim()) {
       Alert.alert('Atenção', 'Preencha o nome do cliente.');
@@ -1471,6 +1486,8 @@ export default function App() {
         return;
       }
 
+      await carregarDadosOnline();
+
       if (clienteEditandoId) {
         setClientes((lista) => lista.map((c) => (c.id === clienteEditandoId ? cliente : c)));
         setAgendamentos((lista) =>
@@ -1497,6 +1514,7 @@ export default function App() {
 
   const excluirCliente = async (id: string) => {
     if (acaoEmAndamento) return;
+    if (!exigirSupabaseConfigurado()) return;
 
     setAcaoEmAndamento(true);
 
@@ -1552,9 +1570,12 @@ export default function App() {
     setTelaAtiva('NovoServico');
   };
 
-  const salvarServico = () => {
+  const salvarServico = async () => {
+    if (acaoEmAndamento) return;
+    if (!exigirSupabaseConfigurado()) return;
+
     if (!novoServicoNome.trim()) {
-      Alert.alert('Atenção', 'Preencha o nome do serviço.');
+      Alert.alert('Atencao', 'Preencha o nome do servico.');
       return;
     }
 
@@ -1565,33 +1586,31 @@ export default function App() {
       duracaoMinutos: Number(novoServicoDuracao || 30),
     };
 
-    supabase
-      .from('servicos')
-      .upsert(servicoParaBanco(servico))
-      .then(({ error }) => {
-        if (error) Alert.alert('Erro Supabase serviços', error.message);
-      });
+    setAcaoEmAndamento(true);
 
-    if (servicoEditandoId) {
-      setServicos((lista) => lista.map((s) => (s.id === servicoEditandoId ? servico : s)));
-      setAgendamentos((lista) =>
-        lista.map((a) => (a.servico.id === servicoEditandoId ? { ...a, servico } : a))
-      );
+    try {
+      const { error } = await supabase
+        .from('servicos')
+        .upsert(servicoParaBanco(servico));
 
-      if (servicoSelecionado?.id === servicoEditandoId) setServicoSelecionado(servico);
-      Alert.alert('Pronto', 'Serviço atualizado.');
-    } else {
-      setServicos((lista) => [servico, ...lista]);
-      setServicoSelecionado(servico);
-      Alert.alert('Pronto', 'Serviço cadastrado.');
+      if (error) {
+        Alert.alert('Erro ao salvar servico', error.message);
+        return;
+      }
+
+      await carregarDadosOnline();
+      if (servicoSelecionado?.id === servicoEditandoId || !servicoEditandoId) setServicoSelecionado(servico);
+      Alert.alert('Pronto', servicoEditandoId ? 'Servico atualizado no banco.' : 'Servico cadastrado no banco.');
+      limparFormServico();
+      setTelaAtiva('Servicos');
+    } finally {
+      setAcaoEmAndamento(false);
     }
-
-    limparFormServico();
-    setTelaAtiva('Servicos');
   };
 
   const excluirServico = async (id: string) => {
     if (acaoEmAndamento) return;
+    if (!exigirSupabaseConfigurado()) return;
 
     const possuiAgendamento = agendamentos.some(
       (a) => a.servico.id === id && a.status !== 'Cancelado'
@@ -1765,6 +1784,12 @@ export default function App() {
 
   const salvarAgendamento = async () => {
     if (acaoEmAndamento) return;
+    if (!exigirSupabaseConfigurado()) return;
+
+    if (perfil !== 'admin') {
+      Alert.alert('Agenda interna', 'Os agendamentos sao feitos somente pela Vanessa.');
+      return;
+    }
 
     let clienteAgendamento = modoSemCadastroAgendamento ? null : clienteSelecionado;
     const semCadastro = modoSemCadastroAgendamento || !clienteAgendamento;
@@ -1872,10 +1897,6 @@ export default function App() {
         return;
       }
 
-      if (perfil !== 'admin') {
-        await supabase.auth.signOut();
-      }
-
       if (!semCadastro && perfil === 'admin') {
         const { error: erroCliente } = await supabase
           .from('clientes')
@@ -1939,22 +1960,27 @@ export default function App() {
     }
   };
 
-  const alternarConfirmacaoAgendamento = (campo: 'confirmado' | 'presente', valor: boolean) => {
+  const alternarConfirmacaoAgendamento = async (campo: 'confirmado' | 'presente', valor: boolean) => {
     if (!agendamentoSelecionado) return;
+    if (!exigirSupabaseConfigurado()) return;
 
     const atualizado = { ...agendamentoSelecionado, [campo]: valor };
-    setAgendamentoSelecionado(atualizado);
-    setAgendamentos((lista) =>
-      lista.map((a) => (a.id === atualizado.id ? atualizado : a))
-    );
 
-    supabase
+    const { error } = await supabase
       .from('agendamentos')
       .update({
         confirmado: Boolean(atualizado.confirmado),
         presente: Boolean(atualizado.presente),
       })
       .eq('id', atualizado.id);
+
+    if (error) {
+      Alert.alert('Nao consegui atualizar', error.message);
+      return;
+    }
+
+    setAgendamentoSelecionado(atualizado);
+    await carregarDadosOnline();
   };
 
   const editarAgendamento = () => {
@@ -2227,6 +2253,7 @@ export default function App() {
   };
 
   const salvarBloqueio = async () => {
+    if (!exigirSupabaseConfigurado()) return;
     if (perfil !== 'admin') {
       Alert.alert('Acesso bloqueado', 'Somente a Vanessa pode bloquear horários.');
       return;
@@ -2304,24 +2331,27 @@ export default function App() {
       }
     }
 
-    setBloqueios((lista) => [novo, ...lista]);
+    await carregarDadosOnline();
     setMotivoBloqueio('');
     setTelaAtiva('Agenda');
     Alert.alert('Pronto', `Bloqueio salvo de ${bloqueioInicio} até ${bloqueioFim}.`);
   };
 
-  const removerBloqueio = (id: string) => {
+  const removerBloqueio = async (id: string) => {
     if (perfil !== 'admin') return;
+    if (!exigirSupabaseConfigurado()) return;
 
-    supabase
+    const { error } = await supabase
       .from('bloqueios')
       .delete()
-      .eq('id', id)
-      .then(({ error }) => {
-        if (error) Alert.alert('Erro Supabase liberar bloqueio', error.message);
-      });
+      .eq('id', id);
 
-    setBloqueios((lista) => lista.filter((b) => b.id !== id));
+    if (error) {
+      Alert.alert('Erro Supabase liberar bloqueio', error.message);
+      return;
+    }
+
+    await carregarDadosOnline();
   };
 
 
@@ -2374,6 +2404,37 @@ export default function App() {
     .reduce((total, item) => total + valorServicoNumero(item.servico.preco), 0);
 
   const totalConfirmados = agendamentos.filter((a) => a.confirmado && a.status !== 'Cancelado').length;
+  const hojeISO = toISODate(new Date());
+  const agendamentosHoje = agendamentos.filter((a) => a.dataISO === hojeISO);
+  const agendamentosHojeAtivos = agendamentosHoje.filter((a) => a.status !== 'Cancelado');
+  const faturamentoHoje = agendamentosHojeAtivos.reduce(
+    (total, item) => total + valorServicoNumero(item.servico.preco),
+    0
+  );
+  const pendentesHoje = agendamentosHojeAtivos.filter((a) => !a.confirmado && !a.presente).length;
+  const finalizadosHoje = agendamentosHojeAtivos.filter((a) => Boolean(a.presente)).length;
+  const canceladosHoje = agendamentosHoje.filter((a) => a.status === 'Cancelado').length;
+  const proximosAtendimentos = agendamentos
+    .filter((a) => a.status !== 'Cancelado' && `${a.dataISO}T${a.horario}` >= `${hojeISO}T00:00`)
+    .sort((a, b) => `${a.dataISO}T${a.horario}`.localeCompare(`${b.dataISO}T${b.horario}`))
+    .slice(0, 4);
+
+  const statusAgendamento = (item: Agendamento) => {
+    if (item.status === 'Cancelado') return 'Cancelado';
+    if (item.presente) return 'Finalizado';
+    if (item.confirmado) return 'Confirmado';
+    return 'Pendente';
+  };
+
+  const resumoCliente = (clienteId: string) => {
+    const lista = historicoDoCliente(clienteId).filter((item) => item.status !== 'Cancelado');
+    const ultima = lista[0];
+    return {
+      ultimaVisita: ultima ? `${dataBR(ultima.dataISO)} ${ultima.horario}` : 'Sem visitas',
+      frequencia: lista.length ? `${lista.length} visita${lista.length > 1 ? 's' : ''}` : 'Sem historico',
+      totalGasto: lista.reduce((total, item) => total + valorServicoNumero(item.servico.preco), 0),
+    };
+  };
 
   const historicoDoCliente = (clienteId?: string | null) => {
     if (!clienteId) return [];
@@ -2406,6 +2467,20 @@ export default function App() {
 
   const BottomMenu = () => (
     <View style={styles.tabBarInferior}>
+      {perfil === 'admin' && (
+        <TouchableOpacity
+          style={[styles.tabItem, telaAtiva === 'Painel' && styles.tabItemAtivo]}
+          onPress={() => setTelaAtiva('Painel')}
+        >
+          <MaterialCommunityIcons
+            name="view-dashboard-outline"
+            size={22}
+            color={telaAtiva === 'Painel' ? '#FFF' : colors.muted}
+          />
+          <Text style={[styles.tabTexto, telaAtiva === 'Painel' && styles.tabTextoAtivo]}>Painel</Text>
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity style={styles.tabItem} onPress={() => setTelaAtiva('Comandas')}>
         <MaterialCommunityIcons name="file-document-outline" size={21} color={colors.muted} />
         <Text style={styles.tabTexto}>{perfil === 'admin' ? 'Comandas' : 'Meus horários'}</Text>
@@ -2442,6 +2517,103 @@ export default function App() {
   const BackgroundLogo = () => (
     <Image source={logoVanessa} style={styles.backgroundLogo} pointerEvents="none" />
   );
+
+  const RenderPainel = () => {
+    if (perfil !== 'admin') return RenderAgenda();
+
+    return (
+      <View style={styles.containerTela}>
+        <ScrollView contentContainerStyle={styles.painelScroll}>
+          <View style={styles.painelHero}>
+            <View style={styles.painelLogoWrap}>
+              <Image source={logoVanessa} style={styles.painelLogo} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.painelSaudacao}>Bom dia, Vanessa</Text>
+              <Text style={styles.painelData}>{formatarData(new Date())}</Text>
+            </View>
+          </View>
+
+          <View style={styles.metricGrid}>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Hoje</Text>
+              <Text style={styles.metricValue}>{agendamentosHojeAtivos.length}</Text>
+              <Text style={styles.metricSub}>agendamentos</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Faturamento</Text>
+              <Text style={styles.metricValueSmall}>{formatarDinheiro(faturamentoHoje)}</Text>
+              <Text style={styles.metricSub}>do dia</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Pendentes</Text>
+              <Text style={styles.metricValue}>{pendentesHoje}</Text>
+              <Text style={styles.metricSub}>a confirmar</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Finalizados</Text>
+              <Text style={styles.metricValue}>{finalizadosHoje}</Text>
+              <Text style={styles.metricSub}>{canceladosHoje} cancelado(s)</Text>
+            </View>
+          </View>
+
+          <View style={styles.quickActions}>
+            <TouchableOpacity style={styles.quickAction} onPress={() => setTelaAtiva('NovoAgendamento')}>
+              <MaterialCommunityIcons name="calendar-plus" size={18} color={colors.primaryDark} />
+              <Text style={styles.quickActionText}>Novo agendamento</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickAction} onPress={() => setTelaAtiva('BloquearHorarios')}>
+              <MaterialCommunityIcons name="calendar-lock" size={18} color={colors.primaryDark} />
+              <Text style={styles.quickActionText}>Bloquear horario</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickAction} onPress={() => setTelaAtiva('Clientes')}>
+              <FontAwesome5 name="users" size={16} color={colors.primaryDark} />
+              <Text style={styles.quickActionText}>Clientes</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickAction} onPress={() => setTelaAtiva('Financeiro')}>
+              <MaterialCommunityIcons name="cash-multiple" size={18} color={colors.primaryDark} />
+              <Text style={styles.quickActionText}>Financeiro</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Proximos atendimentos</Text>
+              <TouchableOpacity onPress={() => setTelaAtiva('Agenda')}>
+                <Text style={styles.linkText}>Ver agenda</Text>
+              </TouchableOpacity>
+            </View>
+
+            {proximosAtendimentos.length === 0 ? (
+              <Text style={styles.emptyText}>Nenhum atendimento proximo.</Text>
+            ) : (
+              proximosAtendimentos.map((item) => (
+                <TouchableOpacity
+                  key={`painel-${item.id}`}
+                  style={styles.painelAtendimento}
+                  onPress={() => {
+                    setAgendamentoSelecionado(item);
+                    setTelaAtiva('Comanda');
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowTitle}>{item.horario} - {item.cliente.nome}</Text>
+                    <Text style={styles.rowSub}>
+                      {dataBR(item.dataISO)} • {item.servico.nome} • {duracaoAgendamento(item)} min
+                    </Text>
+                  </View>
+                  <Text style={[styles.statusBadge, styles.statusPendente]}>
+                    {statusAgendamento(item)}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </ScrollView>
+        <BottomMenu />
+      </View>
+    );
+  };
 
 
   const escolherFotoCliente = async () => {
@@ -2602,7 +2774,7 @@ export default function App() {
       );
     }
 
-    if (modoCadastroPublico) {
+    if (false && modoCadastroPublico) {
       return (
         <SafeAreaView style={styles.safe}>
           <ScrollView
@@ -2793,7 +2965,7 @@ export default function App() {
           </View>
 
           <View style={styles.loginCard}>
-            <Text style={styles.loginSection}>Já sou cliente</Text>
+            <Text style={styles.loginSection}>Area da cliente</Text>
 
             <TextInput
               style={styles.inputForm}
@@ -2833,7 +3005,7 @@ export default function App() {
               disabled={acaoEmAndamento}
             >
               <Text style={styles.btnClienteTexto}>
-                {acaoEmAndamento ? 'Entrando...' : 'Entrar com e-mail'}
+                {acaoEmAndamento ? 'Entrando...' : 'Ver meu cadastro'}
               </Text>
             </TouchableOpacity>
 
@@ -2841,20 +3013,6 @@ export default function App() {
               <Text style={styles.btnVoltarLoginTexto}>Recuperar senha</Text>
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={styles.btnCadastroPublico}
-            onPress={() => {
-              limparFormCliente();
-              setModoCadastroPublico(true);
-            }}
-          >
-            <Text style={styles.btnCadastroPublicoTexto}>Sou novo aqui / Quero me cadastrar</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.btnAgendarRapido} onPress={entrarVisitante}>
-            <Text style={styles.btnAgendarRapidoTexto}>Agendar sem criar conta</Text>
-          </TouchableOpacity>
 
           <TouchableOpacity style={styles.btnWhatsAppLogin} onPress={abrirWhatsAppLogin}>
             <FontAwesome5 name="whatsapp" size={18} color="#FFF" />
@@ -2975,8 +3133,13 @@ export default function App() {
               >
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={styles.cardOcupadoHora}>{agendado.horario}</Text>
-                  <Text style={styles.statusPill}>
-                    {podeVerDetalhes ? 'Agendado' : 'Ocupado'}
+                  <Text style={[
+                    styles.statusPill,
+                    statusAgendamento(agendado) === 'Confirmado' && styles.statusConfirmado,
+                    statusAgendamento(agendado) === 'Finalizado' && styles.statusFinalizado,
+                    statusAgendamento(agendado) === 'Cancelado' && styles.statusCancelado,
+                  ]}>
+                    {podeVerDetalhes ? statusAgendamento(agendado) : 'Ocupado'}
                   </Text>
                 </View>
 
@@ -2986,7 +3149,9 @@ export default function App() {
                     : 'Horario indisponivel'}
                 </Text>
                 {podeVerDetalhes && (
-                  <Text style={styles.cardOcupadoObs}>{duracaoAgendamento(agendado)} min</Text>
+                  <Text style={styles.cardOcupadoObs}>
+                    {duracaoAgendamento(agendado)} min � {agendado.servico.preco}
+                  </Text>
                 )}
 
                 {podeVerDetalhes && !!agendado.observacao && (
@@ -3057,6 +3222,10 @@ export default function App() {
               key={hora}
               style={styles.blocoHora}
               onPress={() => {
+                if (perfil !== 'admin') {
+                  Alert.alert('Agenda interna', 'Para marcar horario, fale diretamente com a Vanessa.');
+                  return;
+                }
                 setHorarioSelecionado(hora);
                 setModalOpcoesVisivel(true);
               }}
@@ -3080,9 +3249,11 @@ export default function App() {
           <Text style={styles.btnHojeTexto}>↑ Hoje</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.btnFlutuante} onPress={() => setTelaAtiva('NovoAgendamento')}>
-          <MaterialCommunityIcons name="plus" size={28} color="#FFF" />
-        </TouchableOpacity>
+        {perfil === 'admin' && (
+          <TouchableOpacity style={styles.btnFlutuante} onPress={() => setTelaAtiva('NovoAgendamento')}>
+            <MaterialCommunityIcons name="plus" size={28} color="#FFF" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <BottomMenu />
@@ -3132,7 +3303,21 @@ export default function App() {
     </View>
   );
 
-  const RenderNovoAgendamento = () => (
+  const RenderNovoAgendamento = () => {
+    if (perfil !== 'admin') {
+      return (
+        <View style={styles.containerTela}>
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyText}>Agenda interna. Somente Vanessa pode criar ou editar horarios.</Text>
+            <TouchableOpacity style={styles.btnSalvarInterno} onPress={() => setTelaAtiva('Agenda')}>
+              <Text style={styles.btnSalvarTexto}>Voltar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    return (
     <View style={styles.containerTela}>
       <ScrollView contentContainerStyle={{ paddingBottom: 90 }}>
         {agendamentoEditandoId && (
@@ -3342,6 +3527,7 @@ export default function App() {
       </TouchableOpacity>
     </View>
   );
+  };
 
   const RenderNovoCadastro = () => (
     <View style={styles.containerTela}>
@@ -3526,41 +3712,58 @@ export default function App() {
         <FlatList
           data={clientesOrdenados}
           keyExtractor={(i) => i.id}
-          renderItem={({ item }) => (
-            <View style={styles.rowServico}>
-              <TouchableOpacity
-                style={{ flex: 1 }}
-                onPress={() => {
-                  if (modoListaProntuarios) {
+          renderItem={({ item }) => {
+            const resumo = resumoCliente(item.id);
+
+            return (
+              <View style={styles.clienteCard}>
+                <TouchableOpacity
+                  style={styles.clienteCardBody}
+                  onPress={() => {
                     editarCliente(item);
-                    return;
-                  }
+                  }}
+                >
+                  <View style={styles.clienteAvatar}>
+                    {item.fotoUrl ? (
+                      <Image source={{ uri: item.fotoUrl }} style={styles.clienteAvatarImg} />
+                    ) : (
+                      <Text style={styles.avatarTxt}>{item.nome[0]}</Text>
+                    )}
+                  </View>
 
-                  setClienteSelecionado(item);
-                  setModoSemCadastroAgendamento(false);
-                  setTelaAtiva('NovoAgendamento');
-                }}
-              >
-                <Text style={styles.rowTitle}>{item.nome}</Text>
-                <Text style={styles.rowSub}>
-                  {item.celular} • {item.aniversario}
-                </Text>
-                <Text style={styles.rowSub}>
-                  Prontuario: {item.prontuario || item.prontuarioArquivoUrl ? 'cadastrado' : 'pendente'}
-                </Text>
-              </TouchableOpacity>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowTitle}>{item.nome}</Text>
+                    <Text style={styles.rowSub}>{item.celular}</Text>
+                    <Text style={styles.rowSub}>Ultima visita: {resumo.ultimaVisita}</Text>
+                    <Text style={styles.rowSub}>Frequencia: {resumo.frequencia}</Text>
+                    <Text style={styles.rowSub}>
+                      Prontuario: {item.prontuario || item.prontuarioArquivoUrl ? 'cadastrado' : 'pendente'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => editarCliente(item)}>
-                <Text style={styles.editText}>Editar</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+                <TouchableOpacity onPress={() => editarCliente(item)}>
+                  <Text style={styles.editText}>Editar</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          }}
         />
       </View>
     );
   };
 
   const RenderServicos = () => {
+    if (perfil !== 'admin') {
+      return (
+        <View style={styles.containerTela}>
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyText}>Servicos sao gerenciados internamente pela Vanessa.</Text>
+          </View>
+        </View>
+      );
+    }
+
     const filtrados = servicos.filter((s) =>
       s.nome.toLowerCase().includes(buscaServico.toLowerCase())
     );
@@ -3595,6 +3798,7 @@ export default function App() {
               <TouchableOpacity
                 style={{ flexDirection: 'row', flex: 1, alignItems: 'center' }}
                 onPress={() => {
+                  if (perfil !== 'admin') return;
                   setServicoSelecionado(item);
                   setTelaAtiva('NovoAgendamento');
                 }}
@@ -4193,15 +4397,80 @@ export default function App() {
       );
     }
 
+    const agora = new Date();
+    const inicioSemana = new Date(agora);
+    inicioSemana.setDate(agora.getDate() - agora.getDay());
+    const inicioSemanaISO = toISODate(inicioSemana);
+    const mesAtual = hojeISO.slice(0, 7);
+    const ativos = agendamentos.filter((a) => a.status !== 'Cancelado');
+    const faturamentoSemana = ativos
+      .filter((a) => normalizarDataISO(a.dataISO) >= inicioSemanaISO)
+      .reduce((total, item) => total + valorServicoNumero(item.servico.preco), 0);
+    const faturamentoMes = ativos
+      .filter((a) => normalizarDataISO(a.dataISO).slice(0, 7) === mesAtual)
+      .reduce((total, item) => total + valorServicoNumero(item.servico.preco), 0);
+    const servicosMaisRealizados = Object.entries(
+      ativos.reduce<Record<string, number>>((acc, item) => {
+        acc[item.servico.nome] = (acc[item.servico.nome] || 0) + 1;
+        return acc;
+      }, {})
+    ).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    const clientesMaisFrequentes = Object.entries(
+      ativos.reduce<Record<string, number>>((acc, item) => {
+        acc[item.cliente.nome] = (acc[item.cliente.nome] || 0) + 1;
+        return acc;
+      }, {})
+    ).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
     return (
       <View style={styles.containerTela}>
         <ScrollView contentContainerStyle={{ padding: 18 }}>
+          <View style={styles.metricGrid}>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Dia</Text>
+              <Text style={styles.metricValueSmall}>{formatarDinheiro(faturamentoHoje)}</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Semana</Text>
+              <Text style={styles.metricValueSmall}>{formatarDinheiro(faturamentoSemana)}</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Mes</Text>
+              <Text style={styles.metricValueSmall}>{formatarDinheiro(faturamentoMes)}</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Total previsto</Text>
+              <Text style={styles.metricValueSmall}>{formatarDinheiro(totalFinanceiro)}</Text>
+            </View>
+          </View>
+
           <View style={styles.configCard}>
-            <Text style={styles.configTitle}>Resumo financeiro</Text>
-            <Text style={styles.configLine}>Agendamentos ativos: {agendamentos.filter((a) => a.status !== 'Cancelado').length}</Text>
+            <Text style={styles.configTitle}>Resumo administrativo</Text>
+            <Text style={styles.configLine}>Agendamentos ativos: {ativos.length}</Text>
             <Text style={styles.configLine}>Agendamentos confirmados: {totalConfirmados}</Text>
-            <Text style={styles.configLine}>Total previsto: {formatarDinheiro(totalFinanceiro)}</Text>
-            <Text style={styles.configLine}>Comissão estimada Vanessa (100%): {formatarDinheiro(totalFinanceiro)}</Text>
+            <Text style={styles.configLine}>Valores pendentes: {formatarDinheiro(ativos.filter((a) => !a.presente).reduce((total, item) => total + valorServicoNumero(item.servico.preco), 0))}</Text>
+          </View>
+
+          <View style={styles.configCard}>
+            <Text style={styles.configTitle}>Mais realizados</Text>
+            {servicosMaisRealizados.length === 0 ? (
+              <Text style={styles.configLine}>Sem dados suficientes.</Text>
+            ) : (
+              servicosMaisRealizados.map(([nome, total]) => (
+                <Text key={`serv-${nome}`} style={styles.configLine}>{nome}: {total}</Text>
+              ))
+            )}
+          </View>
+
+          <View style={styles.configCard}>
+            <Text style={styles.configTitle}>Clientes frequentes</Text>
+            {clientesMaisFrequentes.length === 0 ? (
+              <Text style={styles.configLine}>Sem dados suficientes.</Text>
+            ) : (
+              clientesMaisFrequentes.map(([nome, total]) => (
+                <Text key={`cli-${nome}`} style={styles.configLine}>{nome}: {total} visita(s)</Text>
+              ))
+            )}
           </View>
 
           <FlatList
@@ -4429,12 +4698,12 @@ export default function App() {
         <BackgroundLogo />
         <AppHeader />
 
-        {telaAtiva !== 'Agenda' && (
+        {telaAtiva !== 'Painel' && telaAtiva !== 'Agenda' && (
           <TouchableOpacity
             style={styles.backBtn}
             onPress={() => {
               if (telaAtiva === 'Clientes') setModoListaProntuarios(false);
-              setTelaAtiva('Agenda');
+              setTelaAtiva(perfil === 'admin' ? 'Painel' : 'Agenda');
             }}
           >
             <Ionicons name="chevron-back" size={23} color={colors.primaryDark} />
@@ -4442,6 +4711,7 @@ export default function App() {
           </TouchableOpacity>
         )}
 
+        {telaAtiva === 'Painel' && RenderPainel()}
         {telaAtiva === 'Agenda' && RenderAgenda()}
         {telaAtiva === 'NovoAgendamento' && RenderNovoAgendamento()}
         {telaAtiva === 'NovoCadastro' && RenderNovoCadastro()}
@@ -4607,6 +4877,94 @@ const styles = StyleSheet.create({
   backBtn: { flexDirection: 'row', alignItems: 'center', padding: 10, backgroundColor: colors.surface },
   backText: { color: colors.primaryDark, fontWeight: '800' },
   containerTela: { flex: 1, backgroundColor: 'transparent' },
+  painelScroll: {
+    padding: 14,
+    paddingBottom: 96,
+  },
+  painelHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.surfaceWarm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+  },
+  painelLogoWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: colors.secondary,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+  },
+  painelLogo: { width: 56, height: 56, resizeMode: 'cover' },
+  painelSaudacao: { color: colors.primaryDark, fontSize: 20, fontWeight: '900' },
+  painelData: { color: colors.muted, fontSize: 12, marginTop: 3 },
+  metricGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 12,
+  },
+  metricCard: {
+    width: '48%',
+    minHeight: 88,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    padding: 12,
+    justifyContent: 'space-between',
+  },
+  metricLabel: { color: colors.muted, fontSize: 11, fontWeight: '800' },
+  metricValue: { color: colors.primaryDark, fontSize: 26, fontWeight: '900' },
+  metricValueSmall: { color: colors.primaryDark, fontSize: 17, fontWeight: '900' },
+  metricSub: { color: colors.muted, fontSize: 11 },
+  quickActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 12,
+  },
+  quickAction: {
+    width: '48%',
+    minHeight: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.softLavender,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 8,
+  },
+  quickActionText: { color: colors.primaryDark, fontSize: 12, fontWeight: '900' },
+  sectionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  painelAtendimento: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingVertical: 10,
+    gap: 8,
+  },
   calendarCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.94)',
     marginHorizontal: 10,
@@ -4752,7 +5110,28 @@ const styles = StyleSheet.create({
     borderLeftColor: colors.muted,
   },
   cardOcupadoHora: { fontSize: 12, fontWeight: '900', color: colors.scheduleBlueText },
-  statusPill: { fontSize: 10, color: colors.success, fontWeight: '900' },
+  statusPill: {
+    fontSize: 10,
+    color: colors.primaryDark,
+    fontWeight: '900',
+    backgroundColor: colors.softLavender,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  statusBadge: {
+    fontSize: 10,
+    fontWeight: '900',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  statusPendente: { color: colors.warning, backgroundColor: '#FFF7DF' },
+  statusConfirmado: { color: colors.success, backgroundColor: '#EEF8F1' },
+  statusFinalizado: { color: colors.primaryDark, backgroundColor: colors.softLavender },
+  statusCancelado: { color: colors.danger, backgroundColor: '#FFF0F0' },
   cardOcupadoTitulo: { fontSize: 13, fontWeight: '900', color: colors.scheduleBlueText, marginVertical: 2 },
   cardOcupadoObs: { fontSize: 10, color: '#526D83' },
   cardBloqueado: {
@@ -4964,6 +5343,31 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 2,
   },
+  clienteCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  clienteCardBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 10,
+  },
+  clienteAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.softLavender,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  clienteAvatarImg: { width: 44, height: 44, resizeMode: 'cover' },
   subLabel: { fontSize: 11, color: colors.muted },
   destaqueTexto: { fontSize: 14, fontWeight: '900', color: colors.text, marginTop: 2 },
   formLabel: { fontSize: 14, color: colors.text, fontWeight: '800' },
