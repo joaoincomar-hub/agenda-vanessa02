@@ -306,6 +306,14 @@ function fimBloqueio(bloqueio: Bloqueio) {
   return bloqueio.horarioFim || proximoHorario(bloqueio.horario);
 }
 
+function horarioFimNoMotivo(motivo?: string) {
+  return (motivo || '').match(/\[fim:(\d{1,2}:\d{2})\]/)?.[1] || '';
+}
+
+function motivoVisivelBloqueio(motivo?: string) {
+  return (motivo || 'Bloqueado').replace(/\s*\[fim:\d{1,2}:\d{2}\]\s*/g, '').trim() || 'Bloqueado';
+}
+
 function ordenarClientesPorNome(lista: Cliente[]) {
   return [...lista].sort((a, b) =>
     (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' })
@@ -452,23 +460,28 @@ function agendamentoDoBanco(item: any): Agendamento {
   };
 }
 
-function bloqueioParaBanco(item: Bloqueio) {
-  return {
+function bloqueioParaBanco(item: Bloqueio, incluirFim = true) {
+  const dados: any = {
     id: item.id,
     dataiso: item.dataISO,
     horario: item.horario,
-    horariofim: item.horarioFim || fimBloqueio(item),
     motivo: item.motivo,
   };
+
+  if (incluirFim) dados.horariofim = item.horarioFim || fimBloqueio(item);
+
+  return dados;
 }
 
 function bloqueioDoBanco(item: any): Bloqueio {
+  const motivo = item.motivo || 'Bloqueado';
+
   return {
     id: item.id,
     dataISO: item.dataiso,
     horario: item.horario,
-    horarioFim: item.horariofim || '',
-    motivo: item.motivo || 'Bloqueado',
+    horarioFim: item.horariofim || horarioFimNoMotivo(motivo),
+    motivo: motivoVisivelBloqueio(motivo),
   };
 }
 
@@ -2220,13 +2233,28 @@ export default function App() {
       motivo: motivoBloqueio || 'Bloqueado',
     };
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from('bloqueios')
       .insert(bloqueioParaBanco(novo));
 
     if (error) {
-      Alert.alert('Não consegui bloquear', 'Esse intervalo pode já estar bloqueado ou reservado.');
-      return;
+      const mensagem = `${error.message || ''} ${error.code || ''}`.toLowerCase();
+
+      if (mensagem.includes('horariofim') || mensagem.includes('schema cache') || mensagem.includes('column')) {
+        const legado = {
+          ...novo,
+          motivo: `${novo.motivo} [fim:${bloqueioFim}]`,
+        };
+        const resultadoLegado = await supabase
+          .from('bloqueios')
+          .insert(bloqueioParaBanco(legado, false));
+        error = resultadoLegado.error;
+      }
+
+      if (error) {
+        Alert.alert('Não consegui bloquear', error.message || 'Esse intervalo pode já estar bloqueado ou reservado.');
+        return;
+      }
     }
 
     setBloqueios((lista) => [novo, ...lista]);
@@ -3982,7 +4010,7 @@ export default function App() {
                 <Text style={styles.rowTitle}>
                   {dataBR(item.dataISO)} {item.horario} até {fimBloqueio(item)}
                 </Text>
-                <Text style={styles.rowSub}>{item.motivo}</Text>
+                <Text style={styles.rowSub}>{motivoVisivelBloqueio(item.motivo)}</Text>
               </View>
 
               <TouchableOpacity onPress={() => removerBloqueio(item.id)}>
