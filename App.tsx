@@ -306,6 +306,20 @@ function fimBloqueio(bloqueio: Bloqueio) {
   return bloqueio.horarioFim || proximoHorario(bloqueio.horario);
 }
 
+function bloqueioNoHorario(bloqueiosDia: Bloqueio[], horario: string) {
+  const inicio = minutosDoHorario(horario);
+  const fim = inicio + 30;
+
+  return bloqueiosDia.find((bloqueio) =>
+    intervaloSobrepoe(
+      inicio,
+      fim,
+      minutosDoHorario(bloqueio.horario),
+      minutosDoHorario(fimBloqueio(bloqueio))
+    )
+  );
+}
+
 function horarioFimNoMotivo(motivo?: string) {
   return (motivo || '').match(/\[fim:(\d{1,2}:\d{2})\]/)?.[1] || '';
 }
@@ -2907,7 +2921,7 @@ export default function App() {
         {horarios.map((hora) => {
           const agendado = agendamentosDoDia.find((a) => a.horario === hora);
           const ocupadoPorDuracao = !agendado ? agendamentoNoIntervalo(dataISOSelecionada, hora, 30) : null;
-          const bloqueado = bloqueiosDoDia.find((b) => b.horario === hora);
+          const bloqueado = bloqueioNoHorario(bloqueiosDoDia, hora);
 
           if (agendado) {
             const podeVerDetalhes = perfil === 'admin' || agendamentoDoClienteAtual(agendado);
@@ -2973,9 +2987,11 @@ export default function App() {
                     : Alert.alert('Indisponível', 'Esse horário está bloqueado.')
                 }
               >
-                <Text style={styles.bloqueadoHora}>{hora}</Text>
+                <Text style={styles.bloqueadoHora}>
+                  {bloqueado.horario} até {fimBloqueio(bloqueado)}
+                </Text>
                 <Text style={styles.bloqueadoTexto}>
-                  {perfil === 'admin' ? `Bloqueado - ${bloqueado.motivo}` : 'Indisponivel'}
+                  {perfil === 'admin' ? `Bloqueado - ${motivoVisivelBloqueio(bloqueado.motivo)}` : 'Indisponivel'}
                 </Text>
                 {perfil === 'admin' && <Text style={styles.bloqueadoHint}>Toque para liberar</Text>}
               </TouchableOpacity>
