@@ -182,6 +182,7 @@ type Bloqueio = {
   id: string;
   dataISO: string;
   horario: string;
+  horarioFim?: string;
   motivo: string;
 };
 
@@ -274,6 +275,14 @@ function minutosDoHorario(horario: string) {
   return h * 60 + m;
 }
 
+function horarioValido(horario: string) {
+  const encontrado = horario.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!encontrado) return false;
+  const hora = Number(encontrado[1]);
+  const minuto = Number(encontrado[2]);
+  return hora >= 0 && hora <= 23 && minuto >= 0 && minuto <= 59;
+}
+
 function horarioCabeNaAgenda(horario: string, duracaoMinutos = 30) {
   return minutosDoHorario(horario) + duracaoMinutos <= minutosDoHorario(AGENDA_FIM);
 }
@@ -291,6 +300,10 @@ function horarioPorMinutos(minuto: number) {
 function proximoHorario(horario: string, intervaloMinutos = 30) {
   const fim = minutosDoHorario(AGENDA_FIM);
   return horarioPorMinutos(Math.min(minutosDoHorario(horario) + intervaloMinutos, fim));
+}
+
+function fimBloqueio(bloqueio: Bloqueio) {
+  return bloqueio.horarioFim || proximoHorario(bloqueio.horario);
 }
 
 function ordenarClientesPorNome(lista: Cliente[]) {
@@ -444,6 +457,7 @@ function bloqueioParaBanco(item: Bloqueio) {
     id: item.id,
     dataiso: item.dataISO,
     horario: item.horario,
+    horariofim: item.horarioFim || fimBloqueio(item),
     motivo: item.motivo,
   };
 }
@@ -453,6 +467,7 @@ function bloqueioDoBanco(item: any): Bloqueio {
     id: item.id,
     dataISO: item.dataiso,
     horario: item.horario,
+    horarioFim: item.horariofim || '',
     motivo: item.motivo || 'Bloqueado',
   };
 }
@@ -1587,7 +1602,8 @@ export default function App() {
     return bloqueios.some((b) => {
       if (b.dataISO !== dataISO) return false;
       const inicioBloqueio = minutosDoHorario(b.horario);
-      return intervaloSobrepoe(inicio, fim, inicioBloqueio, inicioBloqueio + 30);
+      const fimExistente = minutosDoHorario(fimBloqueio(b));
+      return intervaloSobrepoe(inicio, fim, inicioBloqueio, fimExistente);
     });
   };
 
@@ -1788,7 +1804,7 @@ export default function App() {
       });
       const bloqueioOnline = (bloqueiosOnline || []).map(bloqueioDoBanco).some((b) => {
         const inicioBloqueio = minutosDoHorario(b.horario);
-        return intervaloSobrepoe(inicioNovo, fimNovo, inicioBloqueio, inicioBloqueio + 30);
+        return intervaloSobrepoe(inicioNovo, fimNovo, inicioBloqueio, minutosDoHorario(fimBloqueio(b)));
       });
 
       if (conflitoOnline || bloqueioOnline) {
@@ -2156,6 +2172,11 @@ export default function App() {
       return;
     }
 
+    if (!horarioValido(bloqueioInicio) || !horarioValido(bloqueioFim)) {
+      Alert.alert('Horario invalido', 'Digite os horarios no formato HH:MM, por exemplo 10:10.');
+      return;
+    }
+
     const inicio = minutosDoHorario(bloqueioInicio);
     const fim = minutosDoHorario(bloqueioFim);
 
@@ -2169,42 +2190,46 @@ export default function App() {
       return;
     }
 
-    const horariosBloquear = horarios.filter((hora) => {
-      const minuto = minutosDoHorario(hora);
-      return minuto >= inicio && minuto < fim;
+    const temAgendamento = agendamentos.some((item) => {
+      if (item.dataISO !== dataISOSelecionada || item.status === 'Cancelado') return false;
+      const inicioAgendamento = minutosDoHorario(item.horario);
+      const fimAgendamento = inicioAgendamento + duracaoAgendamento(item);
+      return intervaloSobrepoe(inicio, fim, inicioAgendamento, fimAgendamento);
     });
 
-    const temAgendamento = horariosBloquear.some((hora) => horarioOcupado(dataISOSelecionada, hora));
     if (temAgendamento) {
       Alert.alert('Horário ocupado', 'Esse intervalo encosta em agendamento já marcado.');
       return;
     }
 
-    const jaBloqueado = horariosBloquear.some((hora) => horarioBloqueado(dataISOSelecionada, hora));
+    const jaBloqueado = bloqueios.some((item) => {
+      if (item.dataISO !== dataISOSelecionada) return false;
+      return intervaloSobrepoe(inicio, fim, minutosDoHorario(item.horario), minutosDoHorario(fimBloqueio(item)));
+    });
+
     if (jaBloqueado) {
       Alert.alert('Já bloqueado', 'Esse intervalo encosta em horário já bloqueado.');
       return;
     }
 
-    const motivo = motivoBloqueio || 'Bloqueado';
-    const agora = Date.now().toString();
-    const novos = horariosBloquear.map((hora, index): Bloqueio => ({
-      id: `${agora}-${index}`,
+    const novo: Bloqueio = {
+      id: Date.now().toString(),
       dataISO: dataISOSelecionada,
-      horario: hora,
-      motivo,
-    }));
+      horario: bloqueioInicio,
+      horarioFim: bloqueioFim,
+      motivo: motivoBloqueio || 'Bloqueado',
+    };
 
     const { error } = await supabase
       .from('bloqueios')
-      .insert(novos.map(bloqueioParaBanco));
+      .insert(bloqueioParaBanco(novo));
 
     if (error) {
       Alert.alert('Não consegui bloquear', 'Esse intervalo pode já estar bloqueado ou reservado.');
       return;
     }
 
-    setBloqueios((lista) => [...novos, ...lista]);
+    setBloqueios((lista) => [novo, ...lista]);
     setMotivoBloqueio('');
     setTelaAtiva('Agenda');
     Alert.alert('Pronto', `Bloqueio salvo de ${bloqueioInicio} até ${bloqueioFim}.`);
@@ -3757,75 +3782,45 @@ export default function App() {
 
     return (
       <View style={styles.containerTela}>
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
-          <TextInput style={styles.inputForm} editable={false} value="Vanessa" />
-
-          <TextInput
-            style={styles.inputForm}
-            editable={false}
-            value={formatarData(dataSelecionada)}
-          />
-
-          <Text style={styles.sectionTitle}>Bloquear de</Text>
-          <View style={styles.horariosPicker}>
-            {horarios.filter((hora) => minutosDoHorario(hora) < minutosDoHorario(AGENDA_FIM)).map((hora) => {
-              const ativo = bloqueioInicio === hora;
-              return (
-                <TouchableOpacity
-                  key={`inicio-${hora}`}
-                  style={[styles.horarioChip, ativo && styles.horarioChipAtivo]}
-                  onPress={() => {
-                    setBloqueioInicio(hora);
-                    if (minutosDoHorario(bloqueioFim) <= minutosDoHorario(hora)) {
-                      setBloqueioFim(proximoHorario(hora));
-                    }
-                  }}
-                >
-                  <Text style={[styles.horarioChipTexto, ativo && styles.horarioChipTextoAtivo]}>
-                    {hora}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+        <ScrollView contentContainerStyle={styles.bloqueioForm}>
+          <View style={styles.fieldBox}>
+            <Text style={styles.fieldLabel}>Profissional</Text>
+            <Text style={styles.fieldValue}>Vanessa</Text>
           </View>
 
-          <Text style={styles.sectionTitle}>Até</Text>
-          <View style={styles.horariosPicker}>
-            {horarios.filter((hora) => minutosDoHorario(hora) > minutosDoHorario(AGENDA_INICIO)).map((hora) => {
-              const ativo = bloqueioFim === hora;
-              const invalido = minutosDoHorario(hora) <= minutosDoHorario(bloqueioInicio);
-              return (
-                <TouchableOpacity
-                  key={`fim-${hora}`}
-                  style={[
-                    styles.horarioChip,
-                    ativo && styles.horarioChipAtivo,
-                    invalido && styles.horarioChipIndisponivel,
-                  ]}
-                  disabled={invalido}
-                  onPress={() => setBloqueioFim(hora)}
-                >
-                  <Text
-                    style={[
-                      styles.horarioChipTexto,
-                      ativo && styles.horarioChipTextoAtivo,
-                      invalido && styles.horarioChipTextoIndisponivel,
-                    ]}
-                  >
-                    {hora}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+          <View style={styles.fieldBox}>
+            <Text style={styles.fieldLabel}>Data de início do bloqueio</Text>
+            <View style={styles.bloqueioLinha}>
+              <Text style={styles.fieldValue}>{formatarData(dataSelecionada)}</Text>
+              <TextInput
+                style={styles.bloqueioHoraInput}
+                value={bloqueioInicio}
+                onChangeText={setBloqueioInicio}
+                keyboardType="numbers-and-punctuation"
+                maxLength={5}
+                autoCorrect={false}
+              />
+            </View>
           </View>
 
-          <Text style={styles.configLine}>
-            Intervalo selecionado: {bloqueioInicio} até {bloqueioFim}
-          </Text>
+          <View style={styles.fieldBox}>
+            <Text style={styles.fieldLabel}>Data final do bloqueio</Text>
+            <View style={styles.bloqueioLinha}>
+              <Text style={styles.fieldValue}>{formatarData(dataSelecionada)}</Text>
+              <TextInput
+                style={styles.bloqueioHoraInput}
+                value={bloqueioFim}
+                onChangeText={setBloqueioFim}
+                keyboardType="numbers-and-punctuation"
+                maxLength={5}
+                autoCorrect={false}
+              />
+            </View>
+          </View>
 
           <TextInput
-            style={styles.inputForm}
-            placeholder="Motivo do bloqueio"
+            style={[styles.fieldBox, styles.bloqueioObsInput]}
+            placeholder="Observação (opcional)"
             value={motivoBloqueio}
             onChangeText={setMotivoBloqueio}
             autoCorrect={false}
@@ -3833,7 +3828,7 @@ export default function App() {
         </ScrollView>
 
         <TouchableOpacity style={styles.btnSalvarPrincipal} onPress={salvarBloqueio}>
-          <Text style={styles.btnSalvarTexto}>Salvar bloqueio por intervalo</Text>
+          <Text style={styles.btnSalvarTexto}>Salvar</Text>
         </TouchableOpacity>
       </View>
     );
@@ -3985,7 +3980,7 @@ export default function App() {
             <View style={styles.rowServico}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle}>
-                  {dataBR(item.dataISO)} às {item.horario}
+                  {dataBR(item.dataISO)} {item.horario} até {fimBloqueio(item)}
                 </Text>
                 <Text style={styles.rowSub}>{item.motivo}</Text>
               </View>
@@ -4755,6 +4750,60 @@ const styles = StyleSheet.create({
   horarioChipTextoAtivo: { color: '#FFF' },
   horarioChipTextoIndisponivel: { color: colors.muted },
   centerCell: { flex: 1, alignItems: 'center' },
+  bloqueioForm: {
+    padding: 20,
+    paddingBottom: 120,
+    gap: 18,
+  },
+  fieldBox: {
+    minHeight: 86,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 12,
+    justifyContent: 'center',
+  },
+  fieldLabel: {
+    position: 'absolute',
+    top: -11,
+    left: 14,
+    backgroundColor: colors.background,
+    paddingHorizontal: 6,
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  fieldValue: {
+    color: colors.text,
+    fontSize: 16,
+  },
+  bloqueioLinha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  bloqueioHoraInput: {
+    minWidth: 86,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '900',
+    textAlign: 'center',
+    backgroundColor: '#FFF',
+  },
+  bloqueioObsInput: {
+    minHeight: 86,
+    fontSize: 15,
+    color: colors.text,
+  },
   linhaFormItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',

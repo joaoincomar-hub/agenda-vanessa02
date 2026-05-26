@@ -53,6 +53,7 @@ create table if not exists public.bloqueios (
   id text primary key,
   dataiso text not null,
   horario text not null,
+  horariofim text,
   motivo text,
   created_at timestamptz default now()
 );
@@ -103,6 +104,7 @@ alter table public.agendamentos add column if not exists updated_at timestamptz 
 
 alter table public.bloqueios add column if not exists dataiso text;
 alter table public.bloqueios add column if not exists horario text;
+alter table public.bloqueios add column if not exists horariofim text;
 alter table public.bloqueios add column if not exists motivo text;
 
 alter table public.backups add column if not exists geradoem text;
@@ -137,6 +139,9 @@ where status <> 'Cancelado';
 
 create unique index if not exists bloqueios_horario_unico
 on public.bloqueios (dataiso, horario);
+
+create index if not exists bloqueios_data_intervalo_idx
+on public.bloqueios (dataiso, horario, horariofim);
 
 create index if not exists clientes_busca_idx
 on public.clientes (lower(nome), lower(email));
@@ -215,11 +220,26 @@ declare
   fim_bloqueio integer;
 begin
   inicio_bloqueio := public.horario_para_minutos(new.horario);
-  fim_bloqueio := inicio_bloqueio + 30;
+  fim_bloqueio := coalesce(public.horario_para_minutos(new.horariofim), inicio_bloqueio + 30);
+
+  if fim_bloqueio <= inicio_bloqueio then
+    raise exception 'Fim do bloqueio deve ser depois do inicio';
+  end if;
 
   if inicio_bloqueio < public.horario_para_minutos('07:00')
      or fim_bloqueio > public.horario_para_minutos('20:00') then
     raise exception 'Bloqueio fora do expediente da agenda';
+  end if;
+
+  if exists (
+    select 1
+    from public.bloqueios b
+    where b.dataiso = new.dataiso
+      and b.id <> new.id
+      and inicio_bloqueio < coalesce(public.horario_para_minutos(b.horariofim), public.horario_para_minutos(b.horario) + 30)
+      and public.horario_para_minutos(b.horario) < fim_bloqueio
+  ) then
+    raise exception 'Bloqueio sobrepoe outro bloqueio';
   end if;
 
   if exists (
