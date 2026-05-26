@@ -326,6 +326,19 @@ function bloqueioNoHorario(bloqueiosDia: Bloqueio[], horario: string) {
   );
 }
 
+function primeiroHorarioVisivelDoBloqueio(bloqueio: Bloqueio) {
+  return (
+    horarios.find((hora) =>
+      intervaloSobrepoe(
+        minutosDoHorario(hora),
+        minutosDoHorario(hora) + 30,
+        minutosDoHorario(bloqueio.horario),
+        minutosDoHorario(fimBloqueio(bloqueio))
+      )
+    ) || bloqueio.horario
+  );
+}
+
 function bloqueioNoDia(bloqueio: Bloqueio, dataISO: string) {
   return normalizarDataISO(bloqueio.dataISO) === normalizarDataISO(dataISO);
 }
@@ -2997,9 +3010,30 @@ export default function App() {
           }
 
           if (bloqueado) {
+            const ehInicioBloqueio = hora === primeiroHorarioVisivelDoBloqueio(bloqueado);
+
+            if (!ehInicioBloqueio) {
+              return (
+                <TouchableOpacity
+                  key={`${bloqueado.id}-${hora}`}
+                  style={styles.blocoHoraBloqueado}
+                  onPress={() =>
+                    perfil === 'admin'
+                      ? removerBloqueio(bloqueado.id)
+                      : Alert.alert('Indisponivel', 'Esse horario esta bloqueado.')
+                  }
+                >
+                  <Text style={styles.textoHoraBloqueada}>{hora}</Text>
+                  <View style={styles.linhaHoraBloqueada}>
+                    <Text style={styles.continuacaoBloqueioTexto}>Bloqueado ate {fimBloqueio(bloqueado)}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }
+
             return (
               <TouchableOpacity
-                key={bloqueado.id}
+                key={`${bloqueado.id}-${hora}`}
                 style={styles.cardBloqueado}
                 onPress={() =>
                   perfil === 'admin'
@@ -4667,6 +4701,12 @@ const styles = StyleSheet.create({
     paddingBottom: 190,
   },
   blocoHora: { flexDirection: 'row', alignItems: 'center', minHeight: 62, paddingHorizontal: 10 },
+  blocoHoraBloqueado: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 62,
+    paddingHorizontal: 10,
+  },
   blocoHoraOcupado: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -4675,6 +4715,18 @@ const styles = StyleSheet.create({
     opacity: 0.68,
   },
   textoHora: { width: 48, fontSize: 11, color: colors.muted, textAlign: 'center' },
+  textoHoraBloqueada: { width: 48, fontSize: 11, color: colors.warning, textAlign: 'center', fontWeight: '900' },
+  linhaHoraBloqueada: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 10,
+    backgroundColor: '#FFF7DF',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.warning,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  continuacaoBloqueioTexto: { color: '#846800', fontSize: 11, fontWeight: '900' },
   ocupadoDuracaoTexto: {
     flex: 1,
     color: colors.muted,
