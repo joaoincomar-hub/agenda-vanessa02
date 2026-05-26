@@ -517,6 +517,7 @@ export default function App() {
   const [nomeLoginCliente, setNomeLoginCliente] = useState('');
   const [celularLoginCliente, setCelularLoginCliente] = useState('');
   const [modoCadastroPublico, setModoCadastroPublico] = useState(false);
+  const [modoListaProntuarios, setModoListaProntuarios] = useState(false);
 
   const [telaAtiva, setTelaAtiva] = useState('Agenda');
   const [modalOpcoesVisivel, setModalOpcoesVisivel] = useState(false);
@@ -780,7 +781,7 @@ export default function App() {
       NovoAgendamento: 'Novo agendamento',
       NovoCadastro: clienteEditandoId ? 'Editar cliente' : 'Cadastro do cliente',
       Servicos: 'Serviços',
-      Clientes: 'Clientes',
+      Clientes: modoListaProntuarios ? 'Prontuários' : 'Clientes',
       NovoServico: servicoEditandoId ? 'Editar serviço' : 'Novo serviço',
       Comanda: 'Comanda',
       BloquearHorarios: 'Bloquear horário',
@@ -1391,6 +1392,7 @@ export default function App() {
 
   const abrirNovoCliente = () => {
     limparFormCliente();
+    setModoListaProntuarios(false);
     setTelaAtiva('NovoCadastro');
   };
 
@@ -1875,7 +1877,7 @@ export default function App() {
       setAgendamentos((lista) =>
         agendamentoEditandoId
           ? lista.map((a) => (a.id === agendamentoEditandoId ? novo : a))
-          : [novo, ...lista]
+        : [novo, ...lista]
       );
       if (!semCadastro) {
         setClientes((lista) => {
@@ -1888,6 +1890,7 @@ export default function App() {
       }
 
       if (perfil === 'admin') setClienteSelecionado(null);
+      setModoListaProntuarios(false);
 
       setServicoSelecionado(null);
       setObservacao('');
@@ -3460,7 +3463,9 @@ export default function App() {
     return (
       <View style={styles.containerTela}>
         <View style={styles.listHeader}>
-          <Text style={styles.listTitle}>Clientes cadastrados</Text>
+          <Text style={styles.listTitle}>
+            {modoListaProntuarios ? 'Prontuários das clientes' : 'Clientes cadastrados'}
+          </Text>
 
           <TouchableOpacity onPress={abrirNovoCliente}>
             <Text style={styles.linkText}>+ Novo</Text>
@@ -3475,6 +3480,11 @@ export default function App() {
               <TouchableOpacity
                 style={{ flex: 1 }}
                 onPress={() => {
+                  if (modoListaProntuarios) {
+                    editarCliente(item);
+                    return;
+                  }
+
                   setClienteSelecionado(item);
                   setModoSemCadastroAgendamento(false);
                   setTelaAtiva('NovoAgendamento');
@@ -3907,12 +3917,24 @@ export default function App() {
 
         {perfil === 'admin' && (
           <>
-            <TouchableOpacity style={styles.menuCard} onPress={() => setTelaAtiva('Clientes')}>
+            <TouchableOpacity
+              style={styles.menuCard}
+              onPress={() => {
+                setModoListaProntuarios(false);
+                setTelaAtiva('Clientes');
+              }}
+            >
               <FontAwesome5 name="users" size={24} color={colors.primary} />
               <Text style={styles.menuText}>Clientes</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuCard} onPress={() => setTelaAtiva('Clientes')}>
+            <TouchableOpacity
+              style={styles.menuCard}
+              onPress={() => {
+                setModoListaProntuarios(true);
+                setTelaAtiva('Clientes');
+              }}
+            >
               <MaterialCommunityIcons name="clipboard-text-outline" size={28} color={colors.primary} />
               <Text style={styles.menuText}>Prontuários</Text>
             </TouchableOpacity>
@@ -4357,7 +4379,13 @@ export default function App() {
         <AppHeader />
 
         {telaAtiva !== 'Agenda' && (
-          <TouchableOpacity style={styles.backBtn} onPress={() => setTelaAtiva('Agenda')}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => {
+              if (telaAtiva === 'Clientes') setModoListaProntuarios(false);
+              setTelaAtiva('Agenda');
+            }}
+          >
             <Ionicons name="chevron-back" size={23} color={colors.primaryDark} />
             <Text style={styles.backText}>Voltar</Text>
           </TouchableOpacity>
