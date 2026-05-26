@@ -282,6 +282,23 @@ function intervaloSobrepoe(inicioA: number, fimA: number, inicioB: number, fimB:
   return inicioA < fimB && inicioB < fimA;
 }
 
+function horarioPorMinutos(minuto: number) {
+  const horas = Math.floor(minuto / 60).toString().padStart(2, '0');
+  const minutos = (minuto % 60).toString().padStart(2, '0');
+  return `${horas}:${minutos}`;
+}
+
+function proximoHorario(horario: string, intervaloMinutos = 30) {
+  const fim = minutosDoHorario(AGENDA_FIM);
+  return horarioPorMinutos(Math.min(minutosDoHorario(horario) + intervaloMinutos, fim));
+}
+
+function ordenarClientesPorNome(lista: Cliente[]) {
+  return [...lista].sort((a, b) =>
+    (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' })
+  );
+}
+
 function telefoneWhatsApp(celular: string) {
   const numeros = celular.replace(/\D/g, '');
   if (!numeros) return '';
@@ -498,6 +515,8 @@ export default function App() {
   const [servicoEditandoId, setServicoEditandoId] = useState<string | null>(null);
   const [buscaServico, setBuscaServico] = useState('');
   const [motivoBloqueio, setMotivoBloqueio] = useState('');
+  const [bloqueioInicio, setBloqueioInicio] = useState('07:00');
+  const [bloqueioFim, setBloqueioFim] = useState('07:30');
   const [modalCancelamentoVisivel, setModalCancelamentoVisivel] = useState(false);
   const [motivoCancelamento, setMotivoCancelamento] = useState('');
   const [storageCarregado, setStorageCarregado] = useState(false);
@@ -514,6 +533,7 @@ export default function App() {
   );
 
   const bloqueiosDoDia = bloqueios.filter((b) => b.dataISO === dataISOSelecionada);
+  const clientesOrdenados = useMemo(() => ordenarClientesPorNome(clientes), [clientes]);
 
   const aniversariosOrdenados = useMemo(
     () =>
@@ -2136,36 +2156,58 @@ export default function App() {
       return;
     }
 
-    if (horarioOcupado(dataISOSelecionada, horarioSelecionado)) {
-      Alert.alert('Horário ocupado', 'Não dá para bloquear um horário já agendado.');
+    const inicio = minutosDoHorario(bloqueioInicio);
+    const fim = minutosDoHorario(bloqueioFim);
+
+    if (fim <= inicio) {
+      Alert.alert('Intervalo inválido', 'O horário final precisa ser depois do horário inicial.');
       return;
     }
 
-    if (horarioBloqueado(dataISOSelecionada, horarioSelecionado)) {
-      Alert.alert('Já bloqueado', 'Esse horário já está bloqueado.');
+    if (inicio < minutosDoHorario(AGENDA_INICIO) || fim > minutosDoHorario(AGENDA_FIM)) {
+      Alert.alert('Fora da agenda', `Escolha um intervalo entre ${AGENDA_INICIO} e ${AGENDA_FIM}.`);
       return;
     }
 
-    const novo: Bloqueio = {
-      id: Date.now().toString(),
+    const horariosBloquear = horarios.filter((hora) => {
+      const minuto = minutosDoHorario(hora);
+      return minuto >= inicio && minuto < fim;
+    });
+
+    const temAgendamento = horariosBloquear.some((hora) => horarioOcupado(dataISOSelecionada, hora));
+    if (temAgendamento) {
+      Alert.alert('Horário ocupado', 'Esse intervalo encosta em agendamento já marcado.');
+      return;
+    }
+
+    const jaBloqueado = horariosBloquear.some((hora) => horarioBloqueado(dataISOSelecionada, hora));
+    if (jaBloqueado) {
+      Alert.alert('Já bloqueado', 'Esse intervalo encosta em horário já bloqueado.');
+      return;
+    }
+
+    const motivo = motivoBloqueio || 'Bloqueado';
+    const agora = Date.now().toString();
+    const novos = horariosBloquear.map((hora, index): Bloqueio => ({
+      id: `${agora}-${index}`,
       dataISO: dataISOSelecionada,
-      horario: horarioSelecionado,
-      motivo: motivoBloqueio || 'Bloqueado',
-    };
+      horario: hora,
+      motivo,
+    }));
 
     const { error } = await supabase
       .from('bloqueios')
-      .insert(bloqueioParaBanco(novo));
+      .insert(novos.map(bloqueioParaBanco));
 
     if (error) {
-      Alert.alert('Não consegui bloquear', 'Esse horário pode já estar bloqueado ou reservado.');
+      Alert.alert('Não consegui bloquear', 'Esse intervalo pode já estar bloqueado ou reservado.');
       return;
     }
 
-    setBloqueios((lista) => [novo, ...lista]);
+    setBloqueios((lista) => [...novos, ...lista]);
     setMotivoBloqueio('');
     setTelaAtiva('Agenda');
-    Alert.alert('Pronto', 'Horário bloqueado.');
+    Alert.alert('Pronto', `Bloqueio salvo de ${bloqueioInicio} até ${bloqueioFim}.`);
   };
 
   const removerBloqueio = (id: string) => {
@@ -2232,6 +2274,18 @@ export default function App() {
     .reduce((total, item) => total + valorServicoNumero(item.servico.preco), 0);
 
   const totalConfirmados = agendamentos.filter((a) => a.confirmado && a.status !== 'Cancelado').length;
+
+  const historicoDoCliente = (clienteId?: string | null) => {
+    if (!clienteId) return [];
+
+    return agendamentos
+      .filter((item) => item.cliente.id === clienteId)
+      .sort((a, b) => {
+        const dataA = `${a.dataISO}T${a.horario}:00`;
+        const dataB = `${b.dataISO}T${b.horario}:00`;
+        return dataB.localeCompare(dataA);
+      });
+  };
 
   const AppHeader = () => (
     <View style={styles.topHeader}>
@@ -2940,6 +2994,8 @@ export default function App() {
                   style={styles.modalBotaoOpcao}
                   onPress={() => {
                     setModalOpcoesVisivel(false);
+                    setBloqueioInicio(horarioSelecionado);
+                    setBloqueioFim(proximoHorario(horarioSelecionado));
                     setTelaAtiva('BloquearHorarios');
                   }}
                 >
@@ -3268,6 +3324,29 @@ export default function App() {
           </View>
         )}
 
+        {perfil === 'admin' && clienteEditandoId && (
+          <View style={styles.prontuarioEditor}>
+            <Text style={styles.sectionTitle}>Historico de agendamentos</Text>
+            {historicoDoCliente(clienteEditandoId).length === 0 ? (
+              <Text style={styles.configLine}>Nenhum agendamento encontrado para esta cliente.</Text>
+            ) : (
+              historicoDoCliente(clienteEditandoId).slice(0, 20).map((item) => (
+                <View key={`hist-admin-${item.id}`} style={styles.historicoItem}>
+                  <Text style={styles.historicoTitulo}>
+                    {dataBR(item.dataISO)} às {item.horario} - {item.servico.nome}
+                  </Text>
+                  <Text style={styles.historicoDetalhe}>
+                    {item.status}
+                    {item.presente ? ' • presente' : ''}
+                    {item.confirmado ? ' • confirmado' : ''}
+                  </Text>
+                  {!!item.observacao && <Text style={styles.historicoObs}>{item.observacao}</Text>}
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
         <TouchableOpacity
           style={[styles.btnSalvarInterno, acaoEmAndamento && styles.btnDesabilitado]}
           onPress={salvarCliente}
@@ -3320,7 +3399,7 @@ export default function App() {
         </View>
 
         <FlatList
-          data={clientes}
+          data={clientesOrdenados}
           keyExtractor={(i) => i.id}
           renderItem={({ item }) => (
             <View style={styles.rowServico}>
@@ -3678,14 +3757,71 @@ export default function App() {
 
     return (
       <View style={styles.containerTela}>
-        <View style={{ padding: 20 }}>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
           <TextInput style={styles.inputForm} editable={false} value="Vanessa" />
 
           <TextInput
             style={styles.inputForm}
             editable={false}
-            value={`${formatarData(dataSelecionada)} ${horarioSelecionado}`}
+            value={formatarData(dataSelecionada)}
           />
+
+          <Text style={styles.sectionTitle}>Bloquear de</Text>
+          <View style={styles.horariosPicker}>
+            {horarios.filter((hora) => minutosDoHorario(hora) < minutosDoHorario(AGENDA_FIM)).map((hora) => {
+              const ativo = bloqueioInicio === hora;
+              return (
+                <TouchableOpacity
+                  key={`inicio-${hora}`}
+                  style={[styles.horarioChip, ativo && styles.horarioChipAtivo]}
+                  onPress={() => {
+                    setBloqueioInicio(hora);
+                    if (minutosDoHorario(bloqueioFim) <= minutosDoHorario(hora)) {
+                      setBloqueioFim(proximoHorario(hora));
+                    }
+                  }}
+                >
+                  <Text style={[styles.horarioChipTexto, ativo && styles.horarioChipTextoAtivo]}>
+                    {hora}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={styles.sectionTitle}>Até</Text>
+          <View style={styles.horariosPicker}>
+            {horarios.filter((hora) => minutosDoHorario(hora) > minutosDoHorario(AGENDA_INICIO)).map((hora) => {
+              const ativo = bloqueioFim === hora;
+              const invalido = minutosDoHorario(hora) <= minutosDoHorario(bloqueioInicio);
+              return (
+                <TouchableOpacity
+                  key={`fim-${hora}`}
+                  style={[
+                    styles.horarioChip,
+                    ativo && styles.horarioChipAtivo,
+                    invalido && styles.horarioChipIndisponivel,
+                  ]}
+                  disabled={invalido}
+                  onPress={() => setBloqueioFim(hora)}
+                >
+                  <Text
+                    style={[
+                      styles.horarioChipTexto,
+                      ativo && styles.horarioChipTextoAtivo,
+                      invalido && styles.horarioChipTextoIndisponivel,
+                    ]}
+                  >
+                    {hora}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={styles.configLine}>
+            Intervalo selecionado: {bloqueioInicio} até {bloqueioFim}
+          </Text>
 
           <TextInput
             style={styles.inputForm}
@@ -3694,10 +3830,10 @@ export default function App() {
             onChangeText={setMotivoBloqueio}
             autoCorrect={false}
           />
-        </View>
+        </ScrollView>
 
         <TouchableOpacity style={styles.btnSalvarPrincipal} onPress={salvarBloqueio}>
-          <Text style={styles.btnSalvarTexto}>Salvar bloqueio</Text>
+          <Text style={styles.btnSalvarTexto}>Salvar bloqueio por intervalo</Text>
         </TouchableOpacity>
       </View>
     );
@@ -3829,8 +3965,20 @@ export default function App() {
 
     return (
       <View style={styles.containerTela}>
+        <View style={styles.listHeader}>
+          <Text style={styles.listTitle}>Horários bloqueados</Text>
+          <TouchableOpacity
+            onPress={() => {
+              setBloqueioInicio(horarioSelecionado);
+              setBloqueioFim(proximoHorario(horarioSelecionado));
+              setTelaAtiva('BloquearHorarios');
+            }}
+          >
+            <Text style={styles.linkText}>+ Bloquear</Text>
+          </TouchableOpacity>
+        </View>
         <FlatList
-          data={bloqueios}
+          data={[...bloqueios].sort((a, b) => `${b.dataISO} ${b.horario}`.localeCompare(`${a.dataISO} ${a.horario}`))}
           keyExtractor={(i) => i.id}
           ListEmptyComponent={<Text style={styles.emptyText}>Nenhum horário bloqueado.</Text>}
           renderItem={({ item }) => (
@@ -4051,6 +4199,7 @@ export default function App() {
 
     const prontuarioArquivo = (clienteSelecionado.prontuarioArquivoUrl || '').trim();
     const prontuarioParecePdf = prontuarioArquivo.toLowerCase().includes('.pdf');
+    const historicoCliente = historicoDoCliente(clienteSelecionado.id);
 
     return (
       <ScrollView style={styles.containerTela} contentContainerStyle={{ paddingBottom: 120 }}>
@@ -4094,6 +4243,27 @@ export default function App() {
                 {prontuarioParecePdf ? 'Abrir PDF do prontuario' : 'Abrir imagem do prontuario'}
               </Text>
             </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.comandaBox}>
+          <Text style={styles.configTitle}>Histórico de agendamentos</Text>
+          {historicoCliente.length === 0 ? (
+            <Text style={styles.configLine}>Nenhum agendamento encontrado.</Text>
+          ) : (
+            historicoCliente.slice(0, 20).map((item) => (
+              <View key={`hist-cliente-${item.id}`} style={styles.historicoItem}>
+                <Text style={styles.historicoTitulo}>
+                  {dataBR(item.dataISO)} às {item.horario} - {item.servico.nome}
+                </Text>
+                <Text style={styles.historicoDetalhe}>
+                  {item.status}
+                  {item.presente ? ' • presente' : ''}
+                  {item.confirmado ? ' • confirmado' : ''}
+                </Text>
+                {!!item.observacao && <Text style={styles.historicoObs}>{item.observacao}</Text>}
+              </View>
+            ))
           )}
         </View>
 
@@ -4970,6 +5140,31 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: colors.softLavender,
     marginBottom: 12,
+  },
+  historicoItem: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    padding: 12,
+    marginBottom: 10,
+  },
+  historicoTitulo: {
+    color: colors.text,
+    fontWeight: '900',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  historicoDetalhe: {
+    color: colors.primaryDark,
+    fontWeight: '800',
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  historicoObs: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
   },
   sectionTitle: {
     color: colors.muted,
