@@ -28,24 +28,24 @@ const logoVanessa = { uri: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2
 const catalogoServicos = require('./assets/catalogo-servicos.pdf');
 
 const colors = {
-  primary: '#8068C9',
-  primaryDark: '#4E3D76',
-  secondary: '#EBC7D7',
-  softPink: '#FFF4F8',
-  softLavender: '#F8F5FF',
-  background: '#FFFCFE',
+  primary: '#7B2CBF',
+  primaryDark: '#4B275F',
+  secondary: '#EBC6D8',
+  softPink: '#FFF6FA',
+  softLavender: '#F6EFFB',
+  background: '#FBF8F5',
   surface: '#FFFFFF',
-  surfaceWarm: '#FFFAFC',
-  text: '#2C2634',
-  muted: '#8E8799',
-  border: '#EEE5F1',
+  surfaceWarm: '#FFF9F2',
+  text: '#241B2F',
+  muted: '#8C8197',
+  border: '#EDE3EF',
   success: '#5E9F7A',
   danger: '#C96565',
-  warning: '#B98A2F',
-  gold: '#C8A65A',
-  blueButton: '#8068C9',
-  scheduleBlue: '#F3EFFB',
-  scheduleBlueText: '#4E3D76',
+  warning: '#B8862B',
+  gold: '#C79B46',
+  blueButton: '#7B2CBF',
+  scheduleBlue: '#F8F1FB',
+  scheduleBlueText: '#4B275F',
 };
 
 const nomesMeses = [
@@ -2561,6 +2561,81 @@ export default function App() {
     </View>
   );
 
+  const AdminSidebar = () => {
+    if (perfil !== 'admin') return null;
+
+    const SidebarItem = ({
+      tela,
+      icon,
+      label,
+      onPress,
+    }: {
+      tela: string;
+      icon: any;
+      label: string;
+      onPress?: () => void;
+    }) => {
+      const ativo = telaAtiva === tela;
+
+      return (
+        <TouchableOpacity
+          style={[styles.sidebarItem, ativo && styles.sidebarItemAtivo]}
+          onPress={onPress || (() => setTelaAtiva(tela))}
+        >
+          <MaterialCommunityIcons
+            name={icon}
+            size={19}
+            color={ativo ? colors.primary : colors.primaryDark}
+          />
+          <Text style={[styles.sidebarText, ativo && styles.sidebarTextAtivo]}>{label}</Text>
+        </TouchableOpacity>
+      );
+    };
+
+    return (
+      <View style={styles.adminSidebar}>
+        <View style={styles.sidebarBrand}>
+          <Image source={logoVanessa} style={styles.sidebarLogo} />
+          <Text style={styles.sidebarBrandName}>Vanessa Rorig</Text>
+          <Text style={styles.sidebarBrandSub}>Terapias & Estética</Text>
+        </View>
+
+        <View style={styles.sidebarNav}>
+          <SidebarItem tela="Painel" icon="view-dashboard-outline" label="Painel" />
+          <SidebarItem tela="Agenda" icon="calendar-month-outline" label="Agenda" />
+          <SidebarItem
+            tela="Clientes"
+            icon="account-group-outline"
+            label="Clientes"
+            onPress={() => {
+              setModoSelecaoClienteAgendamento(false);
+              setModoListaProntuarios(false);
+              setTelaAtiva('Clientes');
+            }}
+          />
+          <SidebarItem tela="Servicos" icon="content-cut" label="Serviços" />
+          <SidebarItem tela="Financeiro" icon="cash-multiple" label="Financeiro" />
+          <SidebarItem tela="Comandas" icon="file-document-outline" label="Comandas" />
+          <SidebarItem tela="Bloqueios" icon="calendar-lock-outline" label="Bloqueios" />
+          <SidebarItem tela="Configuracoes" icon="cog-outline" label="Configurações" />
+        </View>
+
+        <View style={styles.sidebarProfile}>
+          <Image source={logoVanessa} style={styles.sidebarProfilePhoto} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sidebarProfileName}>Vanessa Rorig</Text>
+            <Text style={styles.sidebarProfileSub}>Profissional</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.sidebarLogout} onPress={sair}>
+          <MaterialCommunityIcons name="logout" size={18} color={colors.danger} />
+          <Text style={styles.sidebarLogoutText}>Sair</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const BackgroundLogo = () => (
     <Image source={logoVanessa} style={styles.backgroundLogo} pointerEvents="none" />
   );
@@ -4774,47 +4849,51 @@ export default function App() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.appShell}>
         <BackgroundLogo />
-        <AppHeader />
+        <AdminSidebar />
 
-        {telaAtiva !== 'Painel' && telaAtiva !== 'Agenda' && (
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => {
-              if (telaAtiva === 'Clientes') {
-                setModoListaProntuarios(false);
+        <View style={styles.appMain}>
+          <AppHeader />
 
-                if (modoSelecaoClienteAgendamento) {
-                  setModoSelecaoClienteAgendamento(false);
-                  setTelaAtiva('NovoAgendamento');
-                  return;
+          {telaAtiva !== 'Painel' && telaAtiva !== 'Agenda' && (
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => {
+                if (telaAtiva === 'Clientes') {
+                  setModoListaProntuarios(false);
+
+                  if (modoSelecaoClienteAgendamento) {
+                    setModoSelecaoClienteAgendamento(false);
+                    setTelaAtiva('NovoAgendamento');
+                    return;
+                  }
                 }
-              }
 
-              setTelaAtiva(perfil === 'admin' ? 'Painel' : 'Agenda');
-            }}
-          >
-            <Ionicons name="chevron-back" size={23} color={colors.primaryDark} />
-            <Text style={styles.backText}>Voltar</Text>
-          </TouchableOpacity>
-        )}
+                setTelaAtiva(perfil === 'admin' ? 'Painel' : 'Agenda');
+              }}
+            >
+              <Ionicons name="chevron-back" size={23} color={colors.primaryDark} />
+              <Text style={styles.backText}>Voltar</Text>
+            </TouchableOpacity>
+          )}
 
-        {telaAtiva === 'Painel' && RenderPainel()}
-        {telaAtiva === 'Agenda' && RenderAgenda()}
-        {telaAtiva === 'NovoAgendamento' && RenderNovoAgendamento()}
-        {telaAtiva === 'NovoCadastro' && RenderNovoCadastro()}
-        {telaAtiva === 'Clientes' && RenderClientes()}
-        {telaAtiva === 'Servicos' && RenderServicos()}
-        {telaAtiva === 'NovoServico' && RenderNovoServico()}
-        {telaAtiva === 'Comanda' && RenderComanda()}
-        {telaAtiva === 'BloquearHorarios' && RenderBloquearHorarios()}
-        {telaAtiva === 'Menu' && RenderMenu()}
-        {telaAtiva === 'Comandas' && RenderComandas()}
-        {telaAtiva === 'Bloqueios' && RenderBloqueios()}
-        {telaAtiva === 'Aniversarios' && RenderAniversarios()}
-        {telaAtiva === 'Financeiro' && RenderFinanceiro()}
-        {telaAtiva === 'Backup' && RenderBackup()}
-        {telaAtiva === 'Configuracoes' && RenderConfiguracoes()}
-        {telaAtiva === 'MeuCadastro' && RenderMeuCadastro()}
+          {telaAtiva === 'Painel' && RenderPainel()}
+          {telaAtiva === 'Agenda' && RenderAgenda()}
+          {telaAtiva === 'NovoAgendamento' && RenderNovoAgendamento()}
+          {telaAtiva === 'NovoCadastro' && RenderNovoCadastro()}
+          {telaAtiva === 'Clientes' && RenderClientes()}
+          {telaAtiva === 'Servicos' && RenderServicos()}
+          {telaAtiva === 'NovoServico' && RenderNovoServico()}
+          {telaAtiva === 'Comanda' && RenderComanda()}
+          {telaAtiva === 'BloquearHorarios' && RenderBloquearHorarios()}
+          {telaAtiva === 'Menu' && RenderMenu()}
+          {telaAtiva === 'Comandas' && RenderComandas()}
+          {telaAtiva === 'Bloqueios' && RenderBloqueios()}
+          {telaAtiva === 'Aniversarios' && RenderAniversarios()}
+          {telaAtiva === 'Financeiro' && RenderFinanceiro()}
+          {telaAtiva === 'Backup' && RenderBackup()}
+          {telaAtiva === 'Configuracoes' && RenderConfiguracoes()}
+          {telaAtiva === 'MeuCadastro' && RenderMeuCadastro()}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -4825,13 +4904,112 @@ const styles = StyleSheet.create({
   appShell: {
     flex: 1,
     width: '100%',
-    maxWidth: 520,
+    maxWidth: Platform.OS === 'web' ? 1180 : 520,
     backgroundColor: colors.background,
     borderLeftWidth: 1,
     borderRightWidth: 1,
     borderColor: colors.border,
     position: 'relative',
     overflow: 'hidden',
+    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+  },
+  appMain: {
+    flex: 1,
+    alignSelf: 'stretch',
+    backgroundColor: 'transparent',
+  },
+  adminSidebar: {
+    display: Platform.OS === 'web' ? 'flex' : 'none',
+    width: 252,
+    backgroundColor: '#FFF4F8',
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+    paddingHorizontal: 18,
+    paddingTop: 24,
+    paddingBottom: 18,
+    justifyContent: 'space-between',
+  },
+  sidebarBrand: {
+    alignItems: 'center',
+    paddingBottom: 22,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(123,44,191,0.10)',
+  },
+  sidebarLogo: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    resizeMode: 'cover',
+    borderWidth: 1,
+    borderColor: colors.gold,
+  },
+  sidebarBrandName: {
+    marginTop: 10,
+    color: colors.primaryDark,
+    fontSize: 19,
+    fontWeight: '900',
+  },
+  sidebarBrandSub: {
+    marginTop: 2,
+    color: colors.gold,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  sidebarNav: {
+    flex: 1,
+    paddingTop: 22,
+    gap: 6,
+  },
+  sidebarItem: {
+    minHeight: 44,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  sidebarItemAtivo: {
+    backgroundColor: '#F3E0F3',
+  },
+  sidebarText: {
+    color: colors.primaryDark,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  sidebarTextAtivo: {
+    color: colors.primary,
+    fontWeight: '900',
+  },
+  sidebarProfile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sidebarProfilePhoto: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    resizeMode: 'cover',
+  },
+  sidebarProfileName: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  sidebarProfileSub: { color: colors.muted, fontSize: 10, marginTop: 2 },
+  sidebarLogout: {
+    minHeight: 44,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    marginTop: 14,
+    backgroundColor: '#FFF0F3',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  sidebarLogoutText: { color: colors.danger, fontWeight: '900', fontSize: 13 },
   },
   loginShell: {
     flex: 1,
@@ -4936,13 +5114,13 @@ const styles = StyleSheet.create({
   },
   loginSection: { fontWeight: '900', color: colors.text, marginBottom: 10 },
   topHeader: {
-    height: 56,
-    backgroundColor: colors.softPink,
+    height: 68,
+    backgroundColor: 'rgba(255,255,255,0.84)',
     borderBottomWidth: 1,
     borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: Platform.OS === 'web' ? 24 : 14,
   },
   logoCircle: {
     width: 34,
@@ -4958,26 +5136,36 @@ const styles = StyleSheet.create({
   },
   logoImageSmall: { width: 34, height: 34, resizeMode: 'cover' },
   logoLetters: { color: colors.primary, fontWeight: '900', fontSize: 12 },
-  brandName: { color: colors.primaryDark, fontSize: 13, fontWeight: '900' },
+  brandName: { color: colors.primaryDark, fontSize: 14, fontWeight: '900' },
   brandSub: { color: colors.muted, fontSize: 10, marginTop: 1 },
-  screenTitle: { color: colors.text, fontWeight: '900', fontSize: 15 },
-  backBtn: { flexDirection: 'row', alignItems: 'center', padding: 10, backgroundColor: colors.surface },
+  screenTitle: { color: colors.text, fontWeight: '900', fontSize: 16 },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Platform.OS === 'web' ? 24 : 12,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255,255,255,0.76)',
+  },
   backText: { color: colors.primaryDark, fontWeight: '800' },
   containerTela: { flex: 1, backgroundColor: 'transparent' },
   painelScroll: {
-    padding: 14,
+    padding: Platform.OS === 'web' ? 24 : 14,
     paddingBottom: 96,
   },
   painelHero: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: colors.surfaceWarm,
+    backgroundColor: 'rgba(255,255,255,0.86)',
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 16,
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    elevation: 2,
   },
   painelLogoWrap: {
     width: 56,
@@ -4989,23 +5177,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   painelLogo: { width: 56, height: 56, resizeMode: 'cover' },
-  painelSaudacao: { color: colors.primaryDark, fontSize: 20, fontWeight: '900' },
+  painelSaudacao: { color: colors.primaryDark, fontSize: 22, fontWeight: '900' },
   painelData: { color: colors.muted, fontSize: 12, marginTop: 3 },
   metricGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 16,
   },
   metricCard: {
-    width: '48%',
-    minHeight: 88,
-    borderRadius: 14,
+    width: Platform.OS === 'web' ? '23.5%' : '48%',
+    minHeight: 104,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
-    padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    padding: 14,
     justifyContent: 'space-between',
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 1,
   },
   metricLabel: { color: colors.muted, fontSize: 11, fontWeight: '800' },
   metricValue: { color: colors.primaryDark, fontSize: 26, fontWeight: '900' },
@@ -5014,16 +5206,16 @@ const styles = StyleSheet.create({
   quickActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 16,
   },
   quickAction: {
-    width: '48%',
-    minHeight: 46,
-    borderRadius: 12,
+    width: Platform.OS === 'web' ? '23.5%' : '48%',
+    minHeight: 58,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.softLavender,
+    backgroundColor: '#FFF6F0',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -5032,11 +5224,15 @@ const styles = StyleSheet.create({
   },
   quickActionText: { color: colors.primaryDark, fontSize: 12, fontWeight: '900' },
   sectionCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 12,
+    padding: 14,
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 1,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -5053,19 +5249,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   calendarCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    marginHorizontal: 10,
-    marginTop: 6,
-    marginBottom: 6,
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingTop: 6,
-    paddingBottom: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    marginHorizontal: Platform.OS === 'web' ? 24 : 10,
+    marginTop: Platform.OS === 'web' ? 16 : 8,
+    marginBottom: 10,
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 12,
     borderWidth: 1,
     borderColor: colors.border,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
     elevation: 2,
   },
   headerMes: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
@@ -5139,27 +5335,32 @@ const styles = StyleSheet.create({
   profSubTexto: { fontSize: 11, color: colors.muted, marginTop: 2 },
   agendaScroll: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    backgroundColor: 'rgba(255, 255, 255, 0.58)',
   },
   agendaScrollContent: {
-    paddingTop: 4,
+    paddingTop: Platform.OS === 'web' ? 10 : 4,
     paddingBottom: 190,
   },
-  blocoHora: { flexDirection: 'row', alignItems: 'center', minHeight: 62, paddingHorizontal: 10 },
+  blocoHora: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 68,
+    paddingHorizontal: Platform.OS === 'web' ? 24 : 10,
+  },
   blocoHoraBloqueado: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 62,
-    paddingHorizontal: 10,
+    minHeight: 68,
+    paddingHorizontal: Platform.OS === 'web' ? 24 : 10,
   },
   blocoHoraOcupado: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 58,
-    paddingHorizontal: 10,
+    minHeight: 68,
+    paddingHorizontal: Platform.OS === 'web' ? 24 : 10,
     opacity: 0.68,
   },
-  textoHora: { width: 48, fontSize: 11, color: colors.muted, textAlign: 'center' },
+  textoHora: { width: 56, fontSize: 11, color: colors.muted, textAlign: 'center', fontWeight: '700' },
   textoHoraBloqueada: { width: 48, fontSize: 11, color: colors.warning, textAlign: 'center', fontWeight: '900' },
   linhaHoraBloqueada: {
     flex: 1,
@@ -5183,14 +5384,18 @@ const styles = StyleSheet.create({
   linhaHora: { flex: 1, height: 1, backgroundColor: colors.border },
   cardOcupado: {
     backgroundColor: colors.scheduleBlue,
-    padding: 12,
-    borderRadius: 12,
-    marginLeft: 60,
-    marginRight: 12,
-    marginVertical: 6,
-    minHeight: 74,
+    padding: 14,
+    borderRadius: 18,
+    marginLeft: Platform.OS === 'web' ? 80 : 60,
+    marginRight: Platform.OS === 'web' ? 24 : 12,
+    marginVertical: 7,
+    minHeight: 76,
     borderLeftWidth: 4,
     borderLeftColor: colors.primary,
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 1,
   },
   cardOcupadoPrivado: {
     backgroundColor: '#F1F3F6',
@@ -5219,15 +5424,15 @@ const styles = StyleSheet.create({
   statusConfirmado: { color: colors.success, backgroundColor: '#EEF8F1' },
   statusFinalizado: { color: colors.primaryDark, backgroundColor: colors.softLavender },
   statusCancelado: { color: colors.danger, backgroundColor: '#FFF0F0' },
-  cardOcupadoTitulo: { fontSize: 13, fontWeight: '900', color: colors.scheduleBlueText, marginVertical: 2 },
-  cardOcupadoObs: { fontSize: 10, color: '#526D83' },
+  cardOcupadoTitulo: { fontSize: 14, fontWeight: '900', color: colors.scheduleBlueText, marginVertical: 2 },
+  cardOcupadoObs: { fontSize: 11, color: colors.muted },
   cardBloqueado: {
     backgroundColor: '#FFF7DF',
-    padding: 11,
-    borderRadius: 12,
-    marginLeft: 60,
-    marginRight: 12,
-    marginVertical: 6,
+    padding: 13,
+    borderRadius: 18,
+    marginLeft: Platform.OS === 'web' ? 80 : 60,
+    marginRight: Platform.OS === 'web' ? 24 : 12,
+    marginVertical: 7,
     minHeight: 62,
     borderLeftWidth: 4,
     borderLeftColor: colors.warning,
@@ -5256,12 +5461,15 @@ const styles = StyleSheet.create({
   btnHojeTexto: { color: colors.primaryDark, fontSize: 12, fontWeight: '900' },
   btnFlutuante: {
     backgroundColor: colors.blueButton,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
   },
   tabBarInferior: {
     height: 60,
@@ -5271,6 +5479,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: colors.surface,
+    display: Platform.OS === 'web' ? 'none' : 'flex',
   },
   tabItem: { alignItems: 'center', flex: 1 },
   tabItemAtivo: {
@@ -5284,25 +5493,33 @@ const styles = StyleSheet.create({
   tabTexto: { fontSize: 10, color: colors.muted, marginTop: 2 },
   tabTextoAtivo: { color: '#FFF', fontWeight: '900' },
   tituloSecao: {
-    backgroundColor: colors.softLavender,
+    backgroundColor: 'rgba(246,239,251,0.82)',
     color: colors.muted,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
+    paddingHorizontal: Platform.OS === 'web' ? 24 : 15,
+    paddingVertical: 10,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.5,
   },
   linhaFormRow: {
     flexDirection: 'row',
+    marginHorizontal: Platform.OS === 'web' ? 24 : 0,
+    marginTop: Platform.OS === 'web' ? 10 : 0,
     padding: 15,
     borderBottomWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: Platform.OS === 'web' ? 18 : 0,
   },
   dataHoraEditor: {
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.86)',
+    marginHorizontal: Platform.OS === 'web' ? 24 : 0,
+    marginTop: Platform.OS === 'web' ? 12 : 0,
+    borderWidth: Platform.OS === 'web' ? 1 : 0,
     borderBottomWidth: 1,
     borderColor: colors.border,
+    borderRadius: Platform.OS === 'web' ? 20 : 0,
+    overflow: 'hidden',
   },
   dataControls: {
     flexDirection: 'row',
@@ -5337,8 +5554,8 @@ const styles = StyleSheet.create({
   },
   horarioChip: {
     width: '22.8%',
-    minHeight: 38,
-    borderRadius: 10,
+    minHeight: 40,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
@@ -5366,8 +5583,8 @@ const styles = StyleSheet.create({
     minHeight: 86,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: colors.surface,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     paddingHorizontal: 18,
     paddingTop: 18,
     paddingBottom: 12,
@@ -5398,7 +5615,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 14,
     paddingHorizontal: 12,
     color: colors.text,
     fontSize: 16,
@@ -5415,10 +5632,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginHorizontal: Platform.OS === 'web' ? 24 : 0,
+    marginTop: Platform.OS === 'web' ? 10 : 0,
     padding: 15,
+    borderWidth: Platform.OS === 'web' ? 1 : 0,
     borderBottomWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: Platform.OS === 'web' ? 18 : 0,
   },
   clienteActions: {
     flexDirection: 'row',
@@ -5433,9 +5654,13 @@ const styles = StyleSheet.create({
   clienteCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderWidth: Platform.OS === 'web' ? 1 : 0,
     borderBottomWidth: 1,
     borderColor: colors.border,
+    borderRadius: Platform.OS === 'web' ? 18 : 0,
+    marginHorizontal: Platform.OS === 'web' ? 18 : 0,
+    marginTop: Platform.OS === 'web' ? 10 : 0,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
@@ -5472,11 +5697,11 @@ const styles = StyleSheet.create({
   inputForm: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    padding: 13,
+    borderRadius: 16,
+    padding: 14,
     marginBottom: 15,
     fontSize: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.94)',
   },
   inputTextArea: {
     minHeight: 140,
@@ -5511,19 +5736,23 @@ const styles = StyleSheet.create({
   },
   btnSalvarPrincipal: {
     position: 'absolute',
-    left: 15,
-    right: 15,
+    left: Platform.OS === 'web' ? 24 : 15,
+    right: Platform.OS === 'web' ? 24 : 15,
     bottom: 15,
-    backgroundColor: colors.primaryDark,
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    padding: 16,
+    borderRadius: 18,
     alignItems: 'center',
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 3,
   },
   btnSalvarInterno: {
     marginTop: 8,
-    backgroundColor: colors.primaryDark,
+    backgroundColor: colors.primary,
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 16,
     alignItems: 'center',
   },
   btnDesabilitado: {
@@ -5534,7 +5763,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     backgroundColor: colors.primary,
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 16,
     alignItems: 'center',
   },
   btnClienteTexto: { color: '#FFF', fontWeight: '900', fontSize: 15 },
@@ -5606,9 +5835,13 @@ const styles = StyleSheet.create({
   btnVoltarLoginTexto: { color: colors.muted, fontWeight: '900' },
   formInlineBox: {
     padding: 15,
-    backgroundColor: colors.surface,
+    marginHorizontal: Platform.OS === 'web' ? 24 : 0,
+    marginTop: Platform.OS === 'web' ? 10 : 0,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderWidth: Platform.OS === 'web' ? 1 : 0,
     borderBottomWidth: 1,
     borderColor: colors.border,
+    borderRadius: Platform.OS === 'web' ? 18 : 0,
   },
   formHint: {
     color: colors.muted,
@@ -5617,9 +5850,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   edicaoBanner: {
-    margin: 12,
+    margin: Platform.OS === 'web' ? 24 : 12,
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 18,
     backgroundColor: colors.softLavender,
     borderWidth: 1,
     borderColor: colors.border,
@@ -5670,8 +5903,8 @@ const styles = StyleSheet.create({
   },
   btnEditarComandaTexto: { color: colors.primaryDark, fontWeight: '900' },
   searchArea: {
-    padding: 12,
-    backgroundColor: colors.surface,
+    padding: Platform.OS === 'web' ? 18 : 12,
+    backgroundColor: 'rgba(255,255,255,0.88)',
     borderBottomWidth: 1,
     borderColor: colors.border,
   },
@@ -5693,11 +5926,15 @@ const styles = StyleSheet.create({
   smallAddText: { color: '#FFF', fontWeight: '900' },
   rowServico: {
     padding: 14,
+    borderWidth: Platform.OS === 'web' ? 1 : 0,
     borderBottomWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: Platform.OS === 'web' ? 18 : 0,
+    marginHorizontal: Platform.OS === 'web' ? 18 : 0,
+    marginTop: Platform.OS === 'web' ? 10 : 0,
   },
   rowTitle: { fontSize: 14, fontWeight: '900', color: colors.text },
   rowSub: { fontSize: 12, color: colors.muted, marginTop: 3 },
@@ -5713,19 +5950,23 @@ const styles = StyleSheet.create({
   listHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 15,
-    backgroundColor: colors.surface,
+    padding: Platform.OS === 'web' ? 20 : 15,
+    backgroundColor: 'rgba(255,255,255,0.86)',
     borderBottomWidth: 1,
     borderColor: colors.border,
   },
   listTitle: { fontWeight: '900', color: colors.text },
   comandaBox: {
     backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    margin: 12,
-    borderRadius: 14,
-    padding: 14,
+    margin: Platform.OS === 'web' ? 24 : 12,
+    borderRadius: 22,
+    padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 1,
   },
   comandaNumero: {
     textAlign: 'center',
@@ -5786,27 +6027,35 @@ const styles = StyleSheet.create({
   modalBotaoOpcao: { padding: 18, alignItems: 'center', width: '100%' },
   modalBotaoTexto: { fontSize: 15, color: colors.text, fontWeight: '900' },
   modalLine: { height: 1, backgroundColor: colors.border, width: '100%' },
-  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 12 },
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: Platform.OS === 'web' ? 22 : 12 },
   menuCard: {
-    width: '48%',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
+    width: Platform.OS === 'web' ? '31.3%' : '48%',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 18,
+    padding: 20,
     margin: '1%',
     alignItems: 'center',
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 1,
   },
   menuText: { marginTop: 8, color: colors.text, fontWeight: '900', textAlign: 'center' },
   emptyBox: { padding: 20 },
   emptyText: { padding: 18, color: colors.muted, textAlign: 'center', fontWeight: '700' },
   configCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    borderRadius: 14,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 14,
+    padding: 16,
     marginBottom: 12,
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 1,
   },
   configTitle: { fontWeight: '900', color: colors.text, fontSize: 15, marginBottom: 8 },
   configLine: { color: colors.muted, marginBottom: 5, lineHeight: 20 },
