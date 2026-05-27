@@ -1121,7 +1121,9 @@ export default function App() {
       setEmailAdmin('');
       setSenhaAdmin('');
       await AsyncStorage.setItem(STORAGE_KEYS.sessao, JSON.stringify({ perfil: 'admin', email: emailLogado }));
-      await carregarDadosOnline(true);
+      carregarDadosOnline(true).catch(() => {
+        Alert.alert('Dados online', 'Entramos no painel, mas nao consegui atualizar os dados do Supabase agora.');
+      });
     } catch {
       Alert.alert('Erro de conexão com servidor', 'Não consegui conectar ao Supabase agora.');
     } finally {
