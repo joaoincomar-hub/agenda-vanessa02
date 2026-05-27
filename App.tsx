@@ -88,11 +88,11 @@ const STORAGE_KEYS = {
 
 const env = typeof process !== 'undefined' ? process.env || {} : {};
 
-const SUPABASE_URL =
-  env.EXPO_PUBLIC_SUPABASE_URL || 'https://gyigbtketsqfjhnbpvfn.supabase.co';
-const SUPABASE_ANON_KEY =
-  env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5aWdidGtldHNxZmpobmJwdmZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzU5MTksImV4cCI6MjA5NDgxMTkxOX0.2RIb8VMFpq0gZT7jxno8_0YmtHefvKWCQyVkyY6vGVQ';
+const SUPABASE_URL = String(env.EXPO_PUBLIC_SUPABASE_URL || '').trim();
+const SUPABASE_ANON_KEY = String(env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+const SUPABASE_CONFIGURADO = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+const SUPABASE_URL_CLIENT = SUPABASE_URL || 'https://supabase-nao-configurado.invalid';
+const SUPABASE_KEY_CLIENT = SUPABASE_ANON_KEY || 'supabase-nao-configurado';
 
 const VANESSA_WHATSAPP = env.EXPO_PUBLIC_VANESSA_WHATSAPP || '+55 45 8823-3247';
 const WHATSAPP_LOGIN_MESSAGE =
@@ -103,8 +103,8 @@ const WHATSAPP_LOGIN_MESSAGE_ENCODED =
 const CATALOGO_SERVICOS_WEB_PATH = '/catalogo-servicos.pdf';
 
 const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
+  SUPABASE_URL_CLIENT,
+  SUPABASE_KEY_CLIENT,
   {
     auth: {
       storage: AsyncStorage as any,
@@ -115,7 +115,7 @@ const supabase = createClient(
   }
 );
 
-const bancoOnlineAtivo = true;
+const bancoOnlineAtivo = SUPABASE_CONFIGURADO;
 
 function urlRecuperacaoSenha() {
   const globalScope: any = globalThis as any;
@@ -617,43 +617,54 @@ export default function App() {
   const exigirSupabaseConfigurado = () => {
     if (bancoOnlineAtivo) return true;
     Alert.alert(
-      'Supabase nao configurado',
+      'Supabase não configurado',
       'Configure EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY antes de salvar dados online.'
     );
     return false;
   };
 
-  const carregarDadosOnline = async () => {
+  const carregarDadosOnline = async (mostrarAlerta = true) => {
     if (!bancoOnlineAtivo) {
-      throw new Error('Supabase nao configurado');
+      if (mostrarAlerta) {
+        Alert.alert('Supabase não configurado', 'Configure EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY.');
+      }
+      return false;
     }
 
-    const { data: clientesOnline, error: erroClientes } =
-      await supabase.from('clientes').select('*');
+    try {
+      const { data: clientesOnline, error: erroClientes } =
+        await supabase.from('clientes').select('*');
 
-    const { data: servicosOnline, error: erroServicos } =
-      await supabase.from('servicos').select('*');
+      const { data: servicosOnline, error: erroServicos } =
+        await supabase.from('servicos').select('*');
 
-    const { data: agendamentosOnline, error: erroAgendamentos } =
-      await supabase.from('agendamentos').select('*');
+      const { data: agendamentosOnline, error: erroAgendamentos } =
+        await supabase.from('agendamentos').select('*');
 
-    const { data: bloqueiosOnline, error: erroBloqueios } =
-      await supabase.from('bloqueios').select('*');
+      const { data: bloqueiosOnline, error: erroBloqueios } =
+        await supabase.from('bloqueios').select('*');
 
-    if (erroClientes || erroServicos || erroAgendamentos || erroBloqueios) {
-      throw new Error(
-        erroClientes?.message ||
-        erroServicos?.message ||
-        erroAgendamentos?.message ||
-        erroBloqueios?.message ||
-        'Erro ao carregar banco online'
-      );
+      if (erroClientes || erroServicos || erroAgendamentos || erroBloqueios) {
+        const mensagem =
+          erroClientes?.message ||
+          erroServicos?.message ||
+          erroAgendamentos?.message ||
+          erroBloqueios?.message ||
+          'Erro ao carregar dados';
+
+        if (mostrarAlerta) Alert.alert('Erro ao carregar dados do servidor', mensagem);
+        return false;
+      }
+
+      if (clientesOnline) setClientes(clientesOnline.map(clienteDoBanco));
+      if (servicosOnline?.length) setServicos(servicosOnline.map(servicoDoBanco));
+      if (agendamentosOnline) setAgendamentos(agendamentosOnline.map(agendamentoDoBanco));
+      if (bloqueiosOnline) setBloqueios(bloqueiosOnline.map(bloqueioDoBanco));
+      return true;
+    } catch {
+      if (mostrarAlerta) Alert.alert('Erro de conexão com servidor', 'Erro ao carregar dados do servidor.');
+      return false;
     }
-
-    if (clientesOnline) setClientes(clientesOnline.map(clienteDoBanco));
-    if (servicosOnline?.length) setServicos(servicosOnline.map(servicoDoBanco));
-    if (agendamentosOnline) setAgendamentos(agendamentosOnline.map(agendamentoDoBanco));
-    if (bloqueiosOnline) setBloqueios(bloqueiosOnline.map(bloqueioDoBanco));
   };
 
 
@@ -683,21 +694,37 @@ export default function App() {
         if (sessao) {
           const p = JSON.parse(sessao);
           if (p.perfil === 'admin') {
-            const { data } = await supabase.auth.getUser();
-            const emailLogado = data.user?.email?.toLowerCase();
-            const adminAutorizado =
-              !!emailLogado &&
-              ADMIN_EMAILS.map((item) => item.toLowerCase()).includes(emailLogado);
+            if (!SUPABASE_CONFIGURADO) {
+              Alert.alert('Supabase não configurado', 'Configure EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY.');
+              await AsyncStorage.removeItem(STORAGE_KEYS.sessao);
+              return;
+            }
 
-            if (adminAutorizado) {
+            const { data, error } = await supabase.auth.getSession();
+            const emailLogado = data.session?.user?.email?.toLowerCase() || '';
+            const adminAutorizado = ADMIN_EMAILS.map((item) => item.toLowerCase()).includes(emailLogado);
+
+            if (!error && data.session && adminAutorizado) {
               setPerfil('admin');
-              await carregarDadosOnline();
+              setTelaAtiva('Painel');
+              await carregarDadosOnline(true);
             } else {
               await AsyncStorage.removeItem(STORAGE_KEYS.sessao);
             }
           } else {
             setPerfil(p.perfil);
             if (p.cliente) setClienteSelecionado(p.cliente);
+          }
+        } else if (SUPABASE_CONFIGURADO) {
+          const { data } = await supabase.auth.getSession();
+          const emailLogado = data.session?.user?.email?.toLowerCase() || '';
+          const adminAutorizado = ADMIN_EMAILS.map((item) => item.toLowerCase()).includes(emailLogado);
+
+          if (data.session && adminAutorizado) {
+            setPerfil('admin');
+            setTelaAtiva('Painel');
+            await AsyncStorage.setItem(STORAGE_KEYS.sessao, JSON.stringify({ perfil: 'admin', email: emailLogado }));
+            await carregarDadosOnline(true);
           }
         }
       } catch {
@@ -752,10 +779,10 @@ export default function App() {
 
     const canal = supabase
       .channel('agenda-tempo-real')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, carregarDadosOnline)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'servicos' }, carregarDadosOnline)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'agendamentos' }, carregarDadosOnline)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bloqueios' }, carregarDadosOnline)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => carregarDadosOnline(false))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'servicos' }, () => carregarDadosOnline(false))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agendamentos' }, () => carregarDadosOnline(false))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bloqueios' }, () => carregarDadosOnline(false))
       .subscribe();
 
     return () => {
@@ -1065,7 +1092,7 @@ export default function App() {
       });
 
       if (error) {
-        Alert.alert('Erro no login da Vanessa', error.message);
+        Alert.alert('E-mail ou senha incorretos', error.message || 'Confira e-mail e senha.');
         return;
       }
 
@@ -1074,7 +1101,8 @@ export default function App() {
 
       if (!adminAutorizado) {
         await supabase.auth.signOut();
-        Alert.alert('Acesso bloqueado', 'Esse e-mail não está liberado como admin da agenda.');
+        await AsyncStorage.removeItem(STORAGE_KEYS.sessao);
+        Alert.alert('Usuário não autorizado', 'Esse e-mail não está liberado como admin da agenda.');
         return;
       }
 
@@ -1082,8 +1110,10 @@ export default function App() {
       setTelaAtiva('Painel');
       setEmailAdmin('');
       setSenhaAdmin('');
-      await carregarDadosOnline();
       await AsyncStorage.setItem(STORAGE_KEYS.sessao, JSON.stringify({ perfil: 'admin', email: emailLogado }));
+      await carregarDadosOnline(true);
+    } catch {
+      Alert.alert('Erro de conexão com servidor', 'Não consegui conectar ao Supabase agora.');
     } finally {
       setAcaoEmAndamento(false);
     }
@@ -1419,8 +1449,11 @@ export default function App() {
     setClienteSelecionado(null);
     setServicoSelecionado(null);
     setAgendamentoSelecionado(null);
-    await supabase.auth.signOut();
-    await AsyncStorage.removeItem(STORAGE_KEYS.sessao);
+    try {
+      if (SUPABASE_CONFIGURADO) await supabase.auth.signOut();
+    } finally {
+      await AsyncStorage.removeItem(STORAGE_KEYS.sessao);
+    }
   };
 
   const limparFormCliente = () => {
