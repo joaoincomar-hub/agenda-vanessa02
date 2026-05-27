@@ -88,10 +88,11 @@ const STORAGE_KEYS = {
 
 const env = typeof process !== 'undefined' ? process.env || {} : {};
 
-const SUPABASE_URL = env.EXPO_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-const SUPABASE_URL_CLIENTE = SUPABASE_URL || 'https://example.supabase.co';
-const SUPABASE_ANON_KEY_CLIENTE = SUPABASE_ANON_KEY || 'anon-key-nao-configurada';
+const SUPABASE_URL =
+  env.EXPO_PUBLIC_SUPABASE_URL || 'https://gyigbtketsqfjhnbpvfn.supabase.co';
+const SUPABASE_ANON_KEY =
+  env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5aWdidGtldHNxZmpobmJwdmZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzU5MTksImV4cCI6MjA5NDgxMTkxOX0.2RIb8VMFpq0gZT7jxno8_0YmtHefvKWCQyVkyY6vGVQ';
 
 const VANESSA_WHATSAPP = env.EXPO_PUBLIC_VANESSA_WHATSAPP || '+55 45 8823-3247';
 const WHATSAPP_LOGIN_MESSAGE =
@@ -102,8 +103,8 @@ const WHATSAPP_LOGIN_MESSAGE_ENCODED =
 const CATALOGO_SERVICOS_WEB_PATH = '/catalogo-servicos.pdf';
 
 const supabase = createClient(
-  SUPABASE_URL_CLIENTE,
-  SUPABASE_ANON_KEY_CLIENTE,
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
   {
     auth: {
       storage: AsyncStorage as any,
@@ -114,7 +115,7 @@ const supabase = createClient(
   }
 );
 
-const bancoOnlineAtivo = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+const bancoOnlineAtivo = true;
 
 function urlRecuperacaoSenha() {
   const globalScope: any = globalThis as any;
