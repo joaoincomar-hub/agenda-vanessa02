@@ -541,6 +541,7 @@ export default function App() {
   const [celularLoginCliente, setCelularLoginCliente] = useState('');
   const [modoCadastroPublico, setModoCadastroPublico] = useState(false);
   const [modoListaProntuarios, setModoListaProntuarios] = useState(false);
+  const [modoSelecaoClienteAgendamento, setModoSelecaoClienteAgendamento] = useState(false);
 
   const [telaAtiva, setTelaAtiva] = useState('Painel');
   const [modalOpcoesVisivel, setModalOpcoesVisivel] = useState(false);
@@ -852,7 +853,11 @@ export default function App() {
       NovoAgendamento: 'Novo agendamento',
       NovoCadastro: clienteEditandoId ? 'Editar cliente' : 'Cadastro do cliente',
       Servicos: 'Serviços',
-      Clientes: modoListaProntuarios ? 'Prontuários' : 'Clientes',
+      Clientes: modoSelecaoClienteAgendamento
+        ? 'Selecionar cliente'
+        : modoListaProntuarios
+          ? 'Prontuários'
+          : 'Clientes',
       NovoServico: servicoEditandoId ? 'Editar serviço' : 'Novo serviço',
       Comanda: 'Comanda',
       BloquearHorarios: 'Bloquear horário',
@@ -2536,7 +2541,14 @@ export default function App() {
       </TouchableOpacity>
 
       {perfil === 'admin' && (
-        <TouchableOpacity style={styles.tabItem} onPress={() => setTelaAtiva('Clientes')}>
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => {
+            setModoSelecaoClienteAgendamento(false);
+            setModoListaProntuarios(false);
+            setTelaAtiva('Clientes');
+          }}
+        >
           <FontAwesome5 name="users" size={18} color={colors.muted} />
           <Text style={styles.tabTexto}>Clientes</Text>
         </TouchableOpacity>
@@ -2601,7 +2613,14 @@ export default function App() {
               <MaterialCommunityIcons name="calendar-lock" size={18} color={colors.primaryDark} />
               <Text style={styles.quickActionText}>Bloquear horario</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quickAction} onPress={() => setTelaAtiva('Clientes')}>
+            <TouchableOpacity
+              style={styles.quickAction}
+              onPress={() => {
+                setModoSelecaoClienteAgendamento(false);
+                setModoListaProntuarios(false);
+                setTelaAtiva('Clientes');
+              }}
+            >
               <FontAwesome5 name="users" size={16} color={colors.primaryDark} />
               <Text style={styles.quickActionText}>Clientes</Text>
             </TouchableOpacity>
@@ -3447,7 +3466,11 @@ export default function App() {
             <TouchableOpacity
               style={{ flex: 1 }}
               onPress={() => {
-                if (perfil === 'admin') setTelaAtiva('Clientes');
+                if (perfil === 'admin') {
+                  setModoListaProntuarios(false);
+                  setModoSelecaoClienteAgendamento(true);
+                  setTelaAtiva('Clientes');
+                }
               }}
             >
               <Text style={[styles.formLabel, clienteSelecionado && { color: colors.primaryDark }]}>
@@ -3736,7 +3759,11 @@ export default function App() {
       <View style={styles.containerTela}>
         <View style={styles.listHeader}>
           <Text style={styles.listTitle}>
-            {modoListaProntuarios ? 'Prontuários das clientes' : 'Clientes cadastrados'}
+            {modoSelecaoClienteAgendamento
+              ? 'Selecione a cliente para o agendamento'
+              : modoListaProntuarios
+                ? 'Prontuários das clientes'
+                : 'Clientes cadastrados'}
           </Text>
 
           <TouchableOpacity onPress={abrirNovoCliente}>
@@ -3755,6 +3782,15 @@ export default function App() {
                 <TouchableOpacity
                   style={styles.clienteCardBody}
                   onPress={() => {
+                    if (modoSelecaoClienteAgendamento) {
+                      setClienteSelecionado(item);
+                      setModoSemCadastroAgendamento(false);
+                      setModoSelecaoClienteAgendamento(false);
+                      setModoListaProntuarios(false);
+                      setTelaAtiva('NovoAgendamento');
+                      return;
+                    }
+
                     editarCliente(item);
                   }}
                 >
@@ -3777,7 +3813,12 @@ export default function App() {
                   </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => editarCliente(item)}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setModoSelecaoClienteAgendamento(false);
+                    editarCliente(item);
+                  }}
+                >
                   <Text style={styles.editText}>Editar</Text>
                 </TouchableOpacity>
               </View>
@@ -4210,6 +4251,7 @@ export default function App() {
             <TouchableOpacity
               style={styles.menuCard}
               onPress={() => {
+                setModoSelecaoClienteAgendamento(false);
                 setModoListaProntuarios(false);
                 setTelaAtiva('Clientes');
               }}
@@ -4221,6 +4263,7 @@ export default function App() {
             <TouchableOpacity
               style={styles.menuCard}
               onPress={() => {
+                setModoSelecaoClienteAgendamento(false);
                 setModoListaProntuarios(true);
                 setTelaAtiva('Clientes');
               }}
@@ -4737,7 +4780,16 @@ export default function App() {
           <TouchableOpacity
             style={styles.backBtn}
             onPress={() => {
-              if (telaAtiva === 'Clientes') setModoListaProntuarios(false);
+              if (telaAtiva === 'Clientes') {
+                setModoListaProntuarios(false);
+
+                if (modoSelecaoClienteAgendamento) {
+                  setModoSelecaoClienteAgendamento(false);
+                  setTelaAtiva('NovoAgendamento');
+                  return;
+                }
+              }
+
               setTelaAtiva(perfil === 'admin' ? 'Painel' : 'Agenda');
             }}
           >
