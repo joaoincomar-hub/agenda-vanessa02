@@ -15,6 +15,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -523,6 +524,9 @@ function bloqueioDoBanco(item: any): Bloqueio {
 }
 
 export default function App() {
+  const { width: larguraJanela } = useWindowDimensions();
+  const layoutDesktop = Platform.OS === 'web' && larguraJanela >= 900;
+
   const [perfil, setPerfil] = useState<Perfil>(null);
   const [emailAdmin, setEmailAdmin] = useState('vanessarorigterapias@gmail.com');
   const [senhaAdmin, setSenhaAdmin] = useState('');
@@ -2506,6 +2510,7 @@ export default function App() {
   );
 
   const BottomMenu = () => (
+    layoutDesktop ? null : (
     <View style={styles.tabBarInferior}>
       {perfil === 'admin' && (
         <TouchableOpacity
@@ -2559,10 +2564,11 @@ export default function App() {
         <Text style={styles.tabTexto}>Menu</Text>
       </TouchableOpacity>
     </View>
+    )
   );
 
   const AdminSidebar = () => {
-    if (perfil !== 'admin') return null;
+    if (perfil !== 'admin' || !layoutDesktop) return null;
 
     const SidebarItem = ({
       tela,
@@ -4847,7 +4853,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.appShell}>
+      <View style={[styles.appShell, layoutDesktop && styles.appShellDesktop]}>
         <BackgroundLogo />
         <AdminSidebar />
 
@@ -4904,14 +4910,18 @@ const styles = StyleSheet.create({
   appShell: {
     flex: 1,
     width: '100%',
-    maxWidth: Platform.OS === 'web' ? 1180 : 520,
+    maxWidth: 520,
     backgroundColor: colors.background,
     borderLeftWidth: 1,
     borderRightWidth: 1,
     borderColor: colors.border,
     position: 'relative',
     overflow: 'hidden',
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+    flexDirection: 'column',
+  },
+  appShellDesktop: {
+    maxWidth: 1180,
+    flexDirection: 'row',
   },
   appMain: {
     flex: 1,
@@ -4919,7 +4929,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   adminSidebar: {
-    display: Platform.OS === 'web' ? 'flex' : 'none',
     width: 252,
     backgroundColor: '#FFF4F8',
     borderRightWidth: 1,
@@ -5479,7 +5488,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    display: Platform.OS === 'web' ? 'none' : 'flex',
   },
   tabItem: { alignItems: 'center', flex: 1 },
   tabItemAtivo: {
